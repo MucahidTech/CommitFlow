@@ -1,0 +1,16 @@
+{
+  "name": "@commitflow/config-typescript",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "./package.json",
+    "base.json",
+    "node-library.json",
+    "nextjs.json"
+  ],
+  "exports": {
+    "./base.json": "./base.json",
+    "./node-library.json": "./node-library.json",
+    "./nextjs.json": "./nextjs.json"
+  }
+}
