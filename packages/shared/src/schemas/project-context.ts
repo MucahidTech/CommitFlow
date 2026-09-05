@@ -26,5 +26,20 @@ export const projectContextSchema = z
   })
   .strict();
 
+/**
+ * Input schema for project context.
+ * All fields except projectPath are optional.
+ */
+export const projectContextInputSchema = projectContextSchema.partial({
+  projectName: true,
+  description: true,
+  techStack: true,
+  existingFiles: true,
+  safeMode: true,
+});
+
 /** Inferred TypeScript type for project context */
 export type ProjectContext = z.infer<typeof projectContextSchema>;
+
+/** Inferred TypeScript type for project context input */
+export type ProjectContextInput = z.infer<typeof projectContextInputSchema>;
