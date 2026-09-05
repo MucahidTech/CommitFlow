@@ -1,0 +1,35 @@
+{
+  "name": "commitflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Automated project execution engine with two-agent AI code review",
+  "author": "Mucahid",
+  "license": "PolyForm-NonCommercial-1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MucahidTech/CommitFlow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MucahidTech/CommitFlow/issues"
+  },
+  "homepage": "https://github.com/MucahidTech/CommitFlow#readme",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\"",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "clean": "turbo clean && pnpm -r --parallel exec rm -rf node_modules dist .turbo .next"
+  },
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "prettier": "^3.4.2"
+  }
+}
