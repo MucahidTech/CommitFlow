@@ -75,3 +75,20 @@ export interface CodeReviewResponse {
   /** Suggested improvements (empty if approved) */
   suggestions: string[];
 }
+
+/** Request to generate code for a single commit */
+export interface GenerateCodeRequest {
+  commitId: string;
+  commitMessage: string;
+  projectContext: {
+    projectPath: string;
+    projectName: string;
+    description?: string;
+    techStack: string[];
+  };
+  files: FileContext[];
+  /** Previous review feedback (for refinement attempts) */
+  previousFeedback?: string;
+  /** Previous review issues (for refinement attempts) */
+  previousIssues?: string[];
+}

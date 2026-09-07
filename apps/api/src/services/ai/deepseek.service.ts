@@ -109,7 +109,7 @@ Rules:
             .join("\n\n")
         : "No file context provided.";
 
-    return `Implement the following commit:
+    let prompt = `Implement the following commit:
 Commit ID: ${request.commitId}
 Commit Message: ${request.commitMessage}
 Project: ${request.projectContext.projectName}
@@ -121,5 +121,14 @@ Current file contexts:
 ${filesContext}
 
 Generate the exact file changes needed to implement this commit.`;
+
+    if (request.previousFeedback) {
+      prompt += `\n\nATTENTION: Previous attempt was REJECTED during code review or quality checks.
+Feedback: ${request.previousFeedback}
+Specific Issues to Fix: ${request.previousIssues?.join(", ") ?? "N/A"}
+Please fix ALL mentioned issues in this attempt.`;
+    }
+
+    return prompt;
   }
 }
