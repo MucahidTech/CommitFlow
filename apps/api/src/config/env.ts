@@ -5,26 +5,24 @@ import { z } from "zod";
  * Validates all required environment variables at startup.
  * Fails fast if any required variable is missing or invalid.
  */
-const envSchema = z
-  .object({
-    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-    PORT: z.coerce.number().int().positive().max(65535).default(4000),
+  PORT: z.coerce.number().int().positive().max(65535).default(4000),
 
-    HOST: z.string().min(1).default("0.0.0.0"),
+  HOST: z.string().min(1).default("0.0.0.0"),
 
-    CORS_ORIGIN: z.string().min(1).default("http://localhost:3000"),
+  CORS_ORIGIN: z.string().min(1).default("http://localhost:3000"),
 
-    // Optional in dev/test to allow local application boot without API keys
-    DEEPSEEK_API_KEY: z.string().optional(),
+  // Optional in dev/test to allow local application boot without API keys
+  DEEPSEEK_API_KEY: z.string().optional(),
 
-    DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
+  DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
 
-    GEMINI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
 
-    GEMINI_BASE_URL: z.string().url().default("https://generativelanguage.googleapis.com"),
-  })
-  .strict();
+  GEMINI_BASE_URL: z.string().url().default("https://generativelanguage.googleapis.com"),
+});
 
 /**
  * Parse and validate environment variables.

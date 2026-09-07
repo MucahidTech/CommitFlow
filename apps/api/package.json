@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsup",
-    "dev": "tsx --env-file=.env watch src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "start": "node --env-file=.env dist/index.js",
     "lint": "eslint src/ --max-warnings 0",
     "typecheck": "tsc --noEmit",
