@@ -4,18 +4,19 @@ import { useState } from "react";
 import { ProjectForm } from "@/components/dashboard/project-form";
 import { CommitPlanForm } from "@/components/dashboard/commit-plan-form";
 import { CommitRoadmap } from "@/components/dashboard/commit-roadmap";
+import { ConsoleLog } from "@/components/dashboard/console-log";
+import { useExecutePlan } from "@/hooks/use-execute-plan";
 import type { RoadmapCommit } from "@/types/commit";
 
 export default function HomePage() {
   const [commits, setCommits] = useState<RoadmapCommit[]>([]);
+  const { isExecuting, events } = useExecutePlan();
 
   const handlePlanSubmit = (planText: string) => {
     const lines = planText.split("\n").filter((line) => line.trim());
     const parsed: RoadmapCommit[] = lines.map((line, index) => {
       const trimmed = line.trim();
-
       const match = trimmed.match(/^(?:(\d+)\s*-\s*)?(?:(\w+)(?:\(([^)]+)\))?:\s*)?(.+)$/);
-
       const type = match?.[2] || "feat";
       const scope = match?.[3];
       const subject = match?.[4] || trimmed;
@@ -55,6 +56,10 @@ export default function HomePage() {
 
       <section className="bg-surface p-6 rounded-xl border border-border">
         <CommitRoadmap commits={commits} />
+      </section>
+
+      <section className="bg-surface p-6 rounded-xl border border-border">
+        <ConsoleLog events={events} isExecuting={isExecuting} />
       </section>
     </main>
   );
