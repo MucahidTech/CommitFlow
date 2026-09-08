@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: true
+    steps:
+      # 1. Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Setup pnpm (with caching)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      # 3. Setup Node.js (with pnpm cache)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 5. Format check
+      - name: Format check
+        run: pnpm format:check
+
+      # 6. Build packages
+      - name: Build
+        run: pnpm build
+
+      # 7. Lint
+      - name: Lint
+        run: pnpm lint
+
+      # 8. Typecheck
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # 9. Test
+      - name: Test
+        run: pnpm test
