@@ -5,6 +5,7 @@ import { GitService } from "../git/git.service";
 import { QualityGateService } from "../quality/quality-gate.service";
 import { DeepSeekService } from "./deepseek.service";
 import { GeminiService } from "./gemini.service";
+import { parseTsErrors, parseFormatErrors, formatErrorsForAi } from "../quality/error-parser";
 
 export type CommitExecutionStatus =
   | "reading_files"
@@ -127,10 +128,23 @@ export class OrchestratorService {
       const qualityResult = await this.qualityGate.run();
 
       if (!qualityResult.passed) {
-        lastReviewFeedback = qualityResult.errors.join("\n");
-        lastReviewIssues = qualityResult.errors;
+        const tsErrors = parseTsErrors(qualityResult.typecheck.output, projectContext.projectPath);
+        const formatErrors = parseFormatErrors(qualityResult.format.output);
+        const formattedFeedback = formatErrorsForAi(tsErrors, formatErrors);
 
-        // Rollback before retrying
+        console.warn(
+          `Quality gate failed for commit ${commit.id} (attempt ${attempts}):\n${formattedFeedback}`,
+        );
+
+        lastReviewFeedback = formattedFeedback;
+        lastReviewIssues = undefined;
+
+        onStatusChange?.(
+          "refining_code",
+          attempts,
+          `Quality gate failed (${tsErrors.length} TS errors). Retrying with feedback...`,
+        );
+
         await this.rollbackFiles(backups);
 
         if (attempts >= MAX_ATTEMPTS) {
@@ -138,10 +152,11 @@ export class OrchestratorService {
             commitId: commit.id,
             status: "failed",
             filesWritten: [],
-            error: `Quality gate failed after ${attempts} attempts: ${qualityResult.errors.join("; ")}`,
+            error: `Quality gate failed after ${attempts} attempts:\n${formattedFeedback}`,
             attempts,
           };
         }
+
         continue;
       }
 

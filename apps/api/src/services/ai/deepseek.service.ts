@@ -99,34 +99,42 @@ Rules:
   }
 
   private buildUserPrompt(request: GenerateCodeRequest): string {
-    const filesContext =
-      request.files.length > 0
-        ? request.files
-            .map((file) => {
-              const status = file.exists ? "EXISTS" : "NEW";
-              return `--- FILE: ${file.path} (${status}) ---\n${file.content || "(empty)"}`;
-            })
-            .join("\n\n")
-        : "No file context provided.";
+    let prompt = `Project: ${request.projectContext.projectName}\nCommit Message: ${request.commitMessage}`;
 
-    let prompt = `Implement the following commit:
-Commit ID: ${request.commitId}
-Commit Message: ${request.commitMessage}
-Project: ${request.projectContext.projectName}
-Path: ${request.projectContext.projectPath}
-Description: ${request.projectContext.description ?? "N/A"}
-Tech Stack: ${request.projectContext.techStack.join(", ") || "N/A"}
+    if (request.projectContext.description) {
+      prompt += `\nDescription: ${request.projectContext.description}`;
+    }
 
-Current file contexts:
-${filesContext}
+    if (request.projectContext.techStack.length > 0) {
+      prompt += `\nTech Stack: ${request.projectContext.techStack.join(", ")}`;
+    }
 
-Generate the exact file changes needed to implement this commit.`;
+    if (request.files && request.files.length > 0) {
+      prompt += `\n\n═══ EXISTING FILES CONTEXT ═══\n`;
+      for (const file of request.files) {
+        prompt += `\nFile: ${file.path}\n\`\`\`\n${file.content}\n\`\`\`\n`;
+      }
+    }
+
+    if (request.previousIssues && request.previousIssues.length > 0) {
+      prompt += `\n\n═══ CODE REVIEW ISSUES TO FIX ═══\n`;
+      for (const issue of request.previousIssues) {
+        prompt += `- ${issue}\n`;
+      }
+    }
 
     if (request.previousFeedback) {
-      prompt += `\n\nATTENTION: Previous attempt was REJECTED during code review or quality checks.
-Feedback: ${request.previousFeedback}
-Specific Issues to Fix: ${request.previousIssues?.join(", ") ?? "N/A"}
-Please fix ALL mentioned issues in this attempt.`;
+      prompt += `\n\n═══ QUALITY GATE FAILURE - FIX REQUIRED ═══
+
+Your previous attempt FAILED compilation/quality checks:
+
+${request.previousFeedback}
+
+CRITICAL FIX INSTRUCTIONS:
+1. Fix EVERY listed TypeScript/formatting error above.
+2. Return the COMPLETE contents for modified files (do not omit parts or use placeholders).
+3. Preserve all valid logic and existing correct code.
+4. Verify import paths, exported types, and function signatures.`;
     }
 
     return prompt;
