@@ -9,7 +9,8 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts", "next-env.d.ts"],
   "exclude": ["node_modules", ".next"]
