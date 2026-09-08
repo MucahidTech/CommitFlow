@@ -1,5 +1,5 @@
 export { DeepSeekService } from "./deepseek.service";
-export { GeminiService } from "./gemini.service";
+export { OpenRouterService } from "./openrouter.service";
 export { OrchestratorService } from "./orchestrator.service";
 export type {
   CommitExecutionResult,

@@ -4,7 +4,7 @@ import { FileService } from "../filesystem/file.service";
 import { GitService } from "../git/git.service";
 import { QualityGateService } from "../quality/quality-gate.service";
 import { DeepSeekService } from "./deepseek.service";
-import { GeminiService } from "./gemini.service";
+import { OpenRouterService } from "./openrouter.service";
 import { parseTsErrors, parseFormatErrors, formatErrorsForAi } from "../quality/error-parser";
 
 export type CommitExecutionStatus =
@@ -37,14 +37,14 @@ const MAX_ATTEMPTS = 3;
 
 export class OrchestratorService {
   private readonly deepseek: DeepSeekService;
-  private readonly gemini: GeminiService;
+  private readonly openrouter: OpenRouterService;
   private readonly fileService: FileService;
   private readonly gitService: GitService;
   private readonly qualityGate: QualityGateService;
 
   constructor(projectRoot: string) {
     this.deepseek = new DeepSeekService();
-    this.gemini = new GeminiService();
+    this.openrouter = new OpenRouterService();
     this.fileService = new FileService(projectRoot);
     this.gitService = new GitService(projectRoot);
     this.qualityGate = new QualityGateService(projectRoot);
@@ -92,7 +92,7 @@ export class OrchestratorService {
       });
 
       onStatusChange?.("reviewing_code", attempts);
-      const review = await this.gemini.reviewCode({
+      const review = await this.openrouter.reviewCode({
         commitId: commit.id,
         commitMessage: this.formatCommitMessage(commit),
         projectContext: {

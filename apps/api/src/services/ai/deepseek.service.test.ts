@@ -5,8 +5,9 @@ vi.mock("../../config/env", () => ({
   env: {
     DEEPSEEK_API_KEY: undefined,
     DEEPSEEK_BASE_URL: "https://api.deepseek.com",
-    GEMINI_API_KEY: undefined,
-    GEMINI_BASE_URL: "https://generativelanguage.googleapis.com",
+    OPENROUTER_API_KEY: undefined,
+    OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
+    OPENROUTER_REVIEW_MODEL: "qwen/qwen-2.5-coder-32b-instruct:free",
   },
 }));
 
