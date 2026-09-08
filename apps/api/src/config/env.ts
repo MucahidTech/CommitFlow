@@ -14,14 +14,14 @@ const envSchema = z.object({
 
   CORS_ORIGIN: z.string().min(1).default("http://localhost:3000"),
 
-  // Optional in dev/test to allow local application boot without API keys
+  // DeepSeek (Primary Agent)
   DEEPSEEK_API_KEY: z.string().optional(),
-
   DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
 
-  GEMINI_API_KEY: z.string().optional(),
-
-  GEMINI_BASE_URL: z.string().url().default("https://generativelanguage.googleapis.com"),
+  // OpenRouter (Reviewer Agent)
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api/v1"),
+  OPENROUTER_REVIEW_MODEL: z.string().default("qwen/qwen-2.5-coder-32b-instruct:free"),
 });
 
 /**
@@ -35,9 +35,7 @@ function loadEnv() {
     console.error("❌ Invalid environment variables:");
     console.error(
       parsed.error.issues
-        .map((issue) => {
-          return `  - ${issue.path.join(".")}: ${issue.message}`;
-        })
+        .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
         .join("\n"),
     );
     process.exit(1);
