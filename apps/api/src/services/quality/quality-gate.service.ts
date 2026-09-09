@@ -1,4 +1,5 @@
 import { exec } from "node:child_process";
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -12,20 +13,12 @@ export interface CheckResult {
 
 /** Result of the complete quality gate */
 export interface QualityGateResult {
-  /** Whether all checks passed */
   passed: boolean;
-  /** Format check result */
   format: CheckResult;
-  /** Typecheck result */
   typecheck: CheckResult;
-  /** Human-readable list of failures */
   errors: string[];
 }
 
-/**
- * Quality gate service.
- * Runs formatting and type checking before allowing commits.
- */
 export class QualityGateService {
   private readonly projectRoot: string;
   private readonly execOptions: { cwd: string; maxBuffer: number; timeout: number };
@@ -34,15 +27,15 @@ export class QualityGateService {
     this.projectRoot = path.resolve(projectRoot);
     this.execOptions = {
       cwd: this.projectRoot,
-      maxBuffer: 10 * 1024 * 1024, // 10MB to handle large outputs
-      timeout: 60000, // 60s timeout
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 60000,
     };
   }
 
-  /**
-   * Run the quality gate (format + typecheck).
-   */
   async run(): Promise<QualityGateResult> {
+    // Ensure dependencies are installed first
+    await this.ensureDependenciesInstalled();
+
     const format = await this.runFormat();
     const typecheck = await this.runTypecheck();
     const errors: string[] = [];
@@ -64,10 +57,45 @@ export class QualityGateService {
   }
 
   /**
+   * Install dependencies if node_modules is missing.
+   * This is critical for the first commit on an empty directory.
+   */
+  private async ensureDependenciesInstalled(): Promise<void> {
+    const nodeModulesPath = path.join(this.projectRoot, "node_modules");
+    const packageJsonPath = path.join(this.projectRoot, "package.json");
+
+    try {
+      await fs.access(nodeModulesPath);
+      // node_modules exists
+      return;
+    } catch {
+      // node_modules missing
+    }
+
+    try {
+      await fs.access(packageJsonPath);
+      // package.json exists but no node_modules — install
+      await execAsync("pnpm install --no-frozen-lockfile", this.execOptions);
+    } catch {
+      // No package.json — skip install (nothing to install)
+    }
+  }
+
+  /**
    * Run prettier formatting.
-   * Uses pnpm format with fallback to npx prettier.
    */
   private async runFormat(): Promise<CheckResult> {
+    const hasPackageJson = await this.fileExists("package.json");
+    const hasNodeModules = await this.fileExists("node_modules");
+
+    if (!hasPackageJson) {
+      return { success: true, output: "Skipped: no package.json" };
+    }
+
+    if (!hasNodeModules) {
+      return { success: true, output: "Skipped: no node_modules (nothing to format)" };
+    }
+
     try {
       const { stdout, stderr } = await execAsync(
         "pnpm format || npx prettier --write .",
@@ -87,9 +115,19 @@ export class QualityGateService {
 
   /**
    * Run TypeScript type checking.
-   * Uses pnpm typecheck with fallback to npx tsc --noEmit.
+   * Skips if no tsconfig.json exists (common in early commits).
    */
   private async runTypecheck(): Promise<CheckResult> {
+    const hasTsconfig = await this.fileExists("tsconfig.json");
+    const hasPackageJson = await this.fileExists("package.json");
+
+    if (!hasTsconfig || !hasPackageJson) {
+      return {
+        success: true,
+        output: "Skipped: no tsconfig.json or package.json",
+      };
+    }
+
     try {
       const { stdout, stderr } = await execAsync(
         "pnpm typecheck || npx tsc --noEmit",
@@ -104,6 +142,18 @@ export class QualityGateService {
         success: false,
         output: this.extractErrorMessage(error),
       };
+    }
+  }
+
+  /**
+   * Check if a file or directory exists.
+   */
+  private async fileExists(relativePath: string): Promise<boolean> {
+    try {
+      await fs.access(path.join(this.projectRoot, relativePath));
+      return true;
+    } catch {
+      return false;
     }
   }
 

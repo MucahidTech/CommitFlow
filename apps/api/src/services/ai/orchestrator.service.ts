@@ -57,13 +57,9 @@ export class OrchestratorService {
   ): Promise<CommitExecutionResult> {
     const isGit = await this.gitService.isGitRepository();
     if (!isGit) {
-      return {
-        commitId: commit.id,
-        status: "failed",
-        filesWritten: [],
-        error: `Target path "${projectContext.projectPath}" is not a valid Git repository.`,
-        attempts: 0,
-      };
+      onStatusChange?.("reading_files", 0, "Initializing git repository...");
+      await this.gitService.initializeRepository();
+      onStatusChange?.("reading_files", 0, "Git repository initialized");
     }
 
     let attempts = 0;

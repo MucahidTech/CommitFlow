@@ -1,20 +1,12 @@
 import path from "node:path";
 import simpleGit, { type SimpleGit, type StatusResult } from "simple-git";
 
-/** Result of a commit operation */
 export interface CommitResult {
-  /** Whether the commit was actually executed */
   executed: boolean;
-  /** The commit hash (if executed) */
   hash?: string;
-  /** Human-readable status message */
   message: string;
 }
 
-/**
- * Git service for executing git operations on the target project.
- * Uses simple-git for safe and structured git interactions.
- */
 export class GitService {
   private readonly git: SimpleGit;
   private readonly projectRoot: string;
@@ -36,15 +28,40 @@ export class GitService {
   }
 
   /**
-   * Get the current git status.
+   * Initialize a git repository if none exists.
+   * Also creates an initial commit if the repo is empty.
    */
+  async initializeRepository(): Promise<void> {
+    const isRepo = await this.isGitRepository();
+    if (!isRepo) {
+      await this.git.init();
+    }
+
+    // Create initial commit if repo has no commits yet
+    const hasCommits = await this.hasAnyCommits();
+    if (!hasCommits) {
+      await this.git.add(".");
+      await this.git.commit("chore: initial commit");
+    }
+  }
+
+  /**
+   * Check if the repository has any commits.
+   */
+  private async hasAnyCommits(): Promise<boolean> {
+    try {
+      const result = await this.git.revparse(["HEAD"]);
+      return result.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  // ... باقي الدوال بدون تغيير
   async getStatus(): Promise<StatusResult> {
     return this.git.status();
   }
 
-  /**
-   * Stage specific files for commit.
-   */
   async stageFiles(files: string[]): Promise<void> {
     if (files.length === 0) {
       return;
@@ -52,17 +69,10 @@ export class GitService {
     await this.git.add(files);
   }
 
-  /**
-   * Stage all changes.
-   */
   async stageAll(): Promise<void> {
     await this.git.add(".");
   }
 
-  /**
-   * Execute a commit.
-   * If safeMode is true, returns without executing.
-   */
   async commit(message: string, safeMode: boolean): Promise<CommitResult> {
     if (safeMode) {
       return {
@@ -79,39 +89,23 @@ export class GitService {
     };
   }
 
-  /**
-   * Get the diff of current changes.
-   * Useful for review before committing.
-   */
   async getDiff(): Promise<string> {
     return this.git.diff();
   }
 
-  /**
-   * Get the diff of staged changes.
-   */
   async getStagedDiff(): Promise<string> {
     return this.git.diff(["--cached"]);
   }
 
-  /**
-   * Check if there are any changes to commit.
-   */
   async hasChanges(): Promise<boolean> {
     const status = await this.git.status();
     return status.files.length > 0 || status.staged.length > 0 || status.not_added.length > 0;
   }
 
-  /**
-   * Get the current branch name.
-   */
   async getCurrentBranch(): Promise<string> {
     return this.git.revparse(["--abbrev-ref", "HEAD"]);
   }
 
-  /**
-   * Get the last commit hash (for reference).
-   */
   async getLastCommitHash(): Promise<string> {
     return this.git.revparse(["HEAD"]);
   }

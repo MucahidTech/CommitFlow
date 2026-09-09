@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { QualityGateService } from "./quality-gate.service";
@@ -17,18 +17,21 @@ describe("QualityGateService", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it("returns passed: false when commands fail (no package.json)", async () => {
+  it("skips format and typecheck when no package.json", async () => {
     const result = await service.run();
-    expect(result.passed).toBe(false);
-    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.passed).toBe(true); // Both skipped = passed
+    expect(result.format.success).toBe(true);
+    expect(result.typecheck.success).toBe(true);
   });
 
-  it("has correct structure in result", async () => {
+  it("skips typecheck when no tsconfig.json but has package.json", async () => {
+    await writeFile(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ name: "test", scripts: {} }),
+    );
+    await mkdir(path.join(tempDir, "node_modules"));
+
     const result = await service.run();
-    expect(result).toHaveProperty("format");
-    expect(result).toHaveProperty("typecheck");
-    expect(result).toHaveProperty("errors");
-    expect(result.format.success).toBe(false);
-    expect(result.typecheck.success).toBe(false);
+    expect(result.typecheck.success).toBe(true);
   });
 });
