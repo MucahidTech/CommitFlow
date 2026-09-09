@@ -1,48 +1,48 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { ProjectForm } from "./project-form";
+import { ProjectForm, type ProjectFormData } from "./project-form";
+
+const initialValues: ProjectFormData = {
+  projectName: "",
+  projectPath: "",
+  safeMode: true,
+};
 
 describe("ProjectForm", () => {
-  it("shows validation errors when submitting empty form", async () => {
-    const user = userEvent.setup();
-    render(<ProjectForm onSubmit={vi.fn()} />);
+  it("renders with initial values", () => {
+    render(<ProjectForm values={initialValues} onChange={vi.fn()} />);
 
-    await user.click(screen.getByRole("button", { name: /set project/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Project path is required")).toBeInTheDocument();
-      expect(screen.getByText("Project name is required")).toBeInTheDocument();
-    });
+    expect(screen.getByPlaceholderText("my-project")).toHaveValue("");
+    expect(screen.getByPlaceholderText("/absolute/path/to/project")).toHaveValue("");
+    expect(screen.getByRole("checkbox")).toBeChecked();
   });
 
-  it("calls onSubmit with valid data", async () => {
+  it("calls onChange when project name is typed", async () => {
     const user = userEvent.setup();
-    const handleSubmit = vi.fn();
-    render(<ProjectForm onSubmit={handleSubmit} />);
+    const handleChange = vi.fn();
+    render(<ProjectForm values={initialValues} onChange={handleChange} />);
 
-    await user.type(screen.getByPlaceholderText("/absolute/path/to/project"), "/tmp/test");
-    await user.type(screen.getByPlaceholderText("my-project"), "test-project");
+    const nameInput = screen.getByPlaceholderText("my-project");
+    await user.type(nameInput, "a");
 
-    await user.click(screen.getByRole("button", { name: /set project/i }));
-
-    await waitFor(() => {
-      expect(handleSubmit).toHaveBeenCalledWith({
-        projectPath: "/tmp/test",
-        projectName: "test-project",
-        safeMode: true,
-      });
+    expect(handleChange).toHaveBeenCalledWith({
+      ...initialValues,
+      projectName: "a",
     });
   });
 
   it("toggles safe mode checkbox", async () => {
     const user = userEvent.setup();
-    render(<ProjectForm onSubmit={vi.fn()} />);
+    const handleChange = vi.fn();
+    render(<ProjectForm values={initialValues} onChange={handleChange} />);
 
     const checkbox = screen.getByRole("checkbox");
-    expect(checkbox).toBeChecked();
-
     await user.click(checkbox);
-    expect(checkbox).not.toBeChecked();
+
+    expect(handleChange).toHaveBeenCalledWith({
+      ...initialValues,
+      safeMode: false,
+    });
   });
 });

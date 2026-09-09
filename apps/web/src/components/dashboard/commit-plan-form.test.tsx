@@ -1,35 +1,24 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { CommitPlanForm } from "./commit-plan-form";
 
 describe("CommitPlanForm", () => {
-  it("shows error for plan shorter than 10 characters", async () => {
-    const user = userEvent.setup();
-    render(<CommitPlanForm onSubmit={vi.fn()} />);
+  it("renders textarea with current value", () => {
+    render(<CommitPlanForm value="001 - feat: initial commit" onChange={vi.fn()} />);
 
     const textarea = screen.getByRole("textbox");
-    await user.type(textarea, "short");
-
-    await user.click(screen.getByRole("button", { name: /parse plan/i }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Commit plan must be at least 10 characters")).toBeInTheDocument();
-    });
+    expect(textarea).toHaveValue("001 - feat: initial commit");
   });
 
-  it("calls onSubmit with valid plan text", async () => {
+  it("calls onChange when typing", async () => {
     const user = userEvent.setup();
-    const handleSubmit = vi.fn();
-    render(<CommitPlanForm onSubmit={handleSubmit} />);
+    const handleChange = vi.fn();
+    render(<CommitPlanForm value="" onChange={handleChange} />);
 
     const textarea = screen.getByRole("textbox");
-    await user.type(textarea, "001 - feat: add something");
+    await user.type(textarea, "a");
 
-    await user.click(screen.getByRole("button", { name: /parse plan/i }));
-
-    await waitFor(() => {
-      expect(handleSubmit).toHaveBeenCalledWith("001 - feat: add something");
-    });
+    expect(handleChange).toHaveBeenCalled();
   });
 });

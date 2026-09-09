@@ -2,48 +2,43 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 
 const commitPlanSchema = z.string().min(10, "Commit plan must be at least 10 characters");
 
 interface CommitPlanFormProps {
-  onSubmit: (planText: string) => void;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
 }
 
-export function CommitPlanForm({ onSubmit }: CommitPlanFormProps) {
-  const [planText, setPlanText] = useState("");
+export function CommitPlanForm({ value, onChange, disabled }: CommitPlanFormProps) {
   const [error, setError] = useState<string | undefined>();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    onChange(val);
 
-    const result = commitPlanSchema.safeParse(planText);
-
-    if (!result.success) {
+    const result = commitPlanSchema.safeParse(val);
+    if (!result.success && val.length > 0) {
       setError(result.error.issues[0]?.message);
-      return;
+    } else {
+      setError(undefined);
     }
-
-    setError(undefined);
-    onSubmit(planText);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <div className="flex flex-col h-full min-h-0 bg-surface border border-border rounded-lg p-3">
       <Textarea
-        label="Commit Plan"
+        label="Commit Plan Input"
         placeholder={
-          "Paste your commit plan here...\n\nExample:\n001 - feat: add something\n002 - fix: resolve issue"
+          "001 - feat(shared): scaffold shared package\n002 - feat(shared): define zod schemas\n003 - chore: configure eslint"
         }
-        value={planText}
-        onChange={(e) => setPlanText(e.target.value)}
+        value={value}
+        onChange={handleChange}
         error={error}
-        rows={10}
+        disabled={disabled}
       />
-      <Button type="submit" variant="primary">
-        Parse Plan
-      </Button>
-    </form>
+    </div>
   );
 }

@@ -14,30 +14,28 @@ export function CommitRoadmap({ commits }: CommitRoadmapProps) {
   const inProgressCount = commits.filter((c) => c.status === "in_progress").length;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Summary header */}
-      <div className="flex items-center justify-between border-b border-border pb-3">
-        <h3 className="text-lg font-semibold text-text">Commit Roadmap</h3>
-        <div className="flex gap-3 text-sm text-text-muted">
+    <div className="flex flex-col h-full min-h-0">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border p-3 shrink-0">
+        <h3 className="text-xs font-semibold text-text uppercase tracking-wider">Commit Roadmap</h3>
+        <div className="flex items-center gap-3 text-xs text-text-muted">
           <span>{totalCount} total</span>
-          <span className="text-green-400">{completedCount} completed</span>
+          <span className="text-emerald-400">{completedCount} completed</span>
           <span className="text-blue-400">{inProgressCount} in progress</span>
           <span className="text-red-400">{failedCount} failed</span>
         </div>
       </div>
 
-      {/* Commits list */}
-      {commits.length === 0 ? (
-        <div className="text-center py-8 text-text-muted">
-          No commits yet. Paste your commit plan to get started.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {commits.map((commit) => (
-            <CommitItem key={commit.id} commit={commit} />
-          ))}
-        </div>
-      )}
+      {/* List container */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {commits.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-xs text-text-muted italic">
+            No commits parsed yet. Enter a commit plan to start.
+          </div>
+        ) : (
+          commits.map((commit) => <CommitItem key={commit.id} commit={commit} />)
+        )}
+      </div>
     </div>
   );
 }
@@ -46,14 +44,15 @@ function CommitItem({ commit }: { commit: RoadmapCommit }) {
   const fullMessage = `${commit.type}${commit.scope ? `(${commit.scope})` : ""}: ${commit.subject}`;
 
   return (
-    <div className="bg-surface border border-border rounded-lg p-4 flex items-start justify-between gap-3">
-      <div className="flex flex-col gap-1 min-w-0">
+    <div className="bg-background border border-border rounded p-2.5 flex items-start justify-between gap-2 text-xs">
+      <div className="flex flex-col gap-0.5 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-text-muted">{commit.id}</span>
-          <span className="text-sm text-text truncate">{fullMessage}</span>
+          <span className="font-mono text-text-muted text-[11px] shrink-0">{commit.id}</span>
+          <span className="text-text font-medium truncate">{fullMessage}</span>
         </div>
-
-        {commit.error && <p className="text-xs text-red-400 mt-1 break-words">{commit.error}</p>}
+        {commit.error && (
+          <p className="text-[11px] text-red-400 mt-1 break-words font-mono">{commit.error}</p>
+        )}
       </div>
 
       <Badge color={STATUS_COLORS[commit.status]}>{STATUS_LABELS[commit.status]}</Badge>

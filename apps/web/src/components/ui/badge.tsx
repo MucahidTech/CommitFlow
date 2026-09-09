@@ -9,7 +9,7 @@ interface BadgeProps {
 export function Badge({ color = "", className = "", children }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${color} ${className}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium transition-colors shrink-0 ${color} ${className}`}
     >
       {children}
     </span>

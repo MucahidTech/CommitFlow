@@ -23,7 +23,6 @@ export function ConsoleLog({ events, isExecuting }: ConsoleLogProps) {
     }));
   }, [events]);
 
-  // Scroll strictly on new lines
   useEffect(() => {
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "auto" });
@@ -31,30 +30,31 @@ export function ConsoleLog({ events, isExecuting }: ConsoleLogProps) {
   }, [formattedLines.length]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 border-b border-border pb-3">
-        <h3 className="text-lg font-semibold text-text">Execution Log</h3>
+    <div className="flex flex-col h-full min-h-0 bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border p-3 shrink-0">
+        <h3 className="text-xs font-semibold text-text uppercase tracking-wider">Execution Log</h3>
         {isExecuting ? (
-          <span className="flex items-center gap-1.5 text-xs text-blue-400">
-            <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+          <span className="flex items-center gap-1.5 text-xs text-blue-400 font-mono">
+            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
             Running
           </span>
         ) : events.length > 0 ? (
-          <span className="text-xs text-emerald-400">Completed</span>
+          <span className="text-xs text-emerald-400 font-mono">Completed</span>
         ) : (
-          <span className="text-xs text-text-muted">Idle</span>
+          <span className="text-xs text-text-muted font-mono">Idle</span>
         )}
       </div>
 
-      <div className="bg-slate-950/90 border border-border rounded-lg p-4 font-mono text-xs md:text-sm overflow-y-auto max-h-96">
+      {/* Log view */}
+      <div className="flex-1 p-3 font-mono text-[11px] leading-relaxed overflow-y-auto space-y-1">
         {formattedLines.length === 0 ? (
-          <div className="text-slate-500 italic">Waiting for execution to start...</div>
+          <div className="h-full flex items-center justify-center text-text-muted italic">
+            Waiting for execution logs...
+          </div>
         ) : (
           formattedLines.map((line, index) => (
-            <div
-              key={index}
-              className={`whitespace-pre-wrap break-words leading-relaxed ${line.colorClass}`}
-            >
+            <div key={index} className={`whitespace-pre-wrap break-words ${line.colorClass}`}>
               {line.text}
             </div>
           ))
@@ -133,7 +133,7 @@ function getLineColor(type: SseEvent["type"] | undefined): string {
     case "status":
       return "text-slate-300";
     case "heartbeat":
-      return "text-slate-600 text-xs";
+      return "text-slate-600 text-[10px]";
     default:
       return "text-slate-400";
   }

@@ -10,17 +10,17 @@ export function Input({ label, error, className = "", id, ...props }: InputProps
   const inputId = id || generatedId;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-text-muted">
+        <label htmlFor={inputId} className="text-xs font-medium text-text-muted">
           {label}
         </label>
       )}
       <input
         id={inputId}
         className={`
-          bg-surface border border-border rounded-lg px-3 py-2 text-text
-          placeholder:text-text-muted focus:outline-none focus:ring-2
+          bg-surface border border-border rounded px-2.5 py-1 text-xs text-text
+          placeholder:text-text-muted focus:outline-none focus:ring-1
           focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed
           ${error ? "border-red-500" : ""} ${className}
         `}

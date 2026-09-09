@@ -26,7 +26,7 @@ const sampleCommits: RoadmapCommit[] = [
 describe("CommitRoadmap", () => {
   it("renders empty state when no commits", () => {
     render(<CommitRoadmap commits={[]} />);
-    expect(screen.getByText(/No commits yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/No commits parsed yet/i)).toBeInTheDocument();
   });
 
   it("renders commit items with messages", () => {

@@ -32,7 +32,6 @@ function mapApiStatus(apiStatus: string): RoadmapCommit["status"] {
   return mapping[apiStatus] ?? "pending";
 }
 
-// دالة مساعدة لضمان مطابقة الـ ID سواء كان "001" أو "1"
 function isSameCommit(commitIdA: string, commitIdB: string): boolean {
   if (commitIdA === commitIdB) return true;
   const numA = parseInt(commitIdA, 10);
@@ -41,18 +40,21 @@ function isSameCommit(commitIdA: string, commitIdB: string): boolean {
 }
 
 export default function HomePage() {
-  const [projectContext, setProjectContext] = useState<ProjectFormData | null>(null);
+  const [projectSetup, setProjectSetup] = useState<ProjectFormData>({
+    projectName: "",
+    projectPath: "",
+    safeMode: true,
+  });
+
+  const [planText, setPlanText] = useState<string>("");
   const [commits, setCommits] = useState<RoadmapCommit[]>([]);
   const [, setStreamId] = useState<string | null>(null);
 
   const { isExecuting, events, lastEvent, executePlan, connectionStatus } = useExecutePlan();
 
-  const handleProjectSubmit = useCallback((data: ProjectFormData) => {
-    setProjectContext(data);
-  }, []);
-
-  const handlePlanSubmit = useCallback((planText: string) => {
-    const lines = planText.split("\n").filter((line) => line.trim());
+  const handlePlanChange = useCallback((text: string) => {
+    setPlanText(text);
+    const lines = text.split("\n").filter((line) => line.trim());
     const parsed: RoadmapCommit[] = lines.map((line, index) => {
       const trimmed = line.trim();
       const match = trimmed.match(/^(?:(\d+)\s*-\s*)?(?:(\w+)(?:\(([^)]+)\))?:\s*)?(.+)$/);
@@ -75,19 +77,23 @@ export default function HomePage() {
   }, []);
 
   const handleExecute = useCallback(async () => {
-    if (!projectContext || commits.length === 0 || isExecuting) {
+    if (
+      !projectSetup.projectPath ||
+      !projectSetup.projectName ||
+      commits.length === 0 ||
+      isExecuting
+    ) {
       return;
     }
 
-    // إعادة تعيين كافة الـ commits إلى pending قبل بدء التنفيذ الجديد
     setCommits((prev) => prev.map((c) => ({ ...c, status: "pending", error: undefined })));
 
     const newStreamId = generateStreamId();
     setStreamId(newStreamId);
 
     const commitPlan = {
-      projectPath: projectContext.projectPath,
-      projectName: projectContext.projectName,
+      projectPath: projectSetup.projectPath,
+      projectName: projectSetup.projectName,
       commits: commits.map((c) => ({
         id: c.id,
         phase: c.phase,
@@ -99,15 +105,14 @@ export default function HomePage() {
     };
 
     const planContext = {
-      projectPath: projectContext.projectPath,
-      projectName: projectContext.projectName,
-      safeMode: projectContext.safeMode,
+      projectPath: projectSetup.projectPath,
+      projectName: projectSetup.projectName,
+      safeMode: projectSetup.safeMode,
     };
 
     await executePlan(planContext, commitPlan, newStreamId);
-  }, [projectContext, commits, isExecuting, executePlan]);
+  }, [projectSetup, commits, isExecuting, executePlan]);
 
-  // تحديث حالة الـ Roadmap فور وصول أحداث SSE
   useEffect(() => {
     if (!lastEvent) return;
 
@@ -138,59 +143,68 @@ export default function HomePage() {
     }
   }, [lastEvent]);
 
-  const canExecute = projectContext !== null && commits.length > 0 && !isExecuting;
+  const canExecute = Boolean(
+    projectSetup.projectPath && projectSetup.projectName && commits.length > 0 && !isExecuting,
+  );
 
   return (
-    <main className="min-h-screen p-8 max-w-4xl mx-auto flex flex-col gap-8">
-      <header className="border-b border-border pb-4 flex items-center justify-between">
+    <main className="h-screen w-screen bg-background text-text flex flex-col overflow-hidden p-3 gap-3 font-sans">
+      {/* Top Header */}
+      <header className="flex items-center justify-between border-b border-border pb-2 shrink-0">
         <div>
-          <h1 className="text-3xl font-bold text-primary">CommitFlow</h1>
-          <p className="text-text-muted mt-1">
-            Configure project context and commit plan execution.
-          </p>
+          <h1 className="font-bold text-sm tracking-wide text-primary">CommitFlow Control Panel</h1>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {connectionStatus !== "idle" && (
-            <span className="text-xs px-2.5 py-1 rounded-full border border-border bg-surface text-text-muted">
+            <span className="text-[11px] px-2 py-0.5 rounded border border-border bg-surface text-text-muted font-mono">
               SSE: <strong className="text-text capitalize">{connectionStatus}</strong>
             </span>
           )}
 
-          {projectContext && (
-            <div className="text-right text-sm text-text-muted">
-              <span className="text-text font-medium">{projectContext.projectName}</span>
-              <br />
-              <span className="text-xs font-mono">{projectContext.projectPath}</span>
+          {projectSetup.projectName && (
+            <div className="text-right text-xs text-text-muted">
+              <span className="text-text font-medium">{projectSetup.projectName}</span>
+              <span className="mx-1.5">•</span>
+              <span className="font-mono text-[11px]">{projectSetup.projectPath}</span>
             </div>
           )}
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <section className="bg-surface p-6 rounded-xl border border-border">
-          <h2 className="text-xl font-semibold mb-4 text-text">Project Setup</h2>
-          <ProjectForm onSubmit={handleProjectSubmit} />
-        </section>
+      {/* Main Grid View (Viewport Constrained) */}
+      <div className="grid grid-cols-12 gap-3 flex-1 min-h-0">
+        {/* Left Column: Input Panels */}
+        <div className="col-span-5 flex flex-col gap-3 h-full min-h-0">
+          <ProjectForm values={projectSetup} onChange={setProjectSetup} disabled={isExecuting} />
 
-        <section className="bg-surface p-6 rounded-xl border border-border">
-          <h2 className="text-xl font-semibold mb-4 text-text">Commit Plan Input</h2>
-          <CommitPlanForm onSubmit={handlePlanSubmit} />
-        </section>
-      </div>
+          <div className="flex-1 min-h-0 flex flex-col">
+            <CommitPlanForm value={planText} onChange={handlePlanChange} disabled={isExecuting} />
+          </div>
 
-      <section className="bg-surface p-6 rounded-xl border border-border">
-        <CommitRoadmap commits={commits} />
-      </section>
+          <Button
+            onClick={handleExecute}
+            disabled={!canExecute}
+            variant="primary"
+            size="md"
+            className="w-full shrink-0 font-semibold"
+          >
+            {isExecuting ? "Executing Plan..." : "Execute Plan"}
+          </Button>
+        </div>
 
-      <section className="bg-surface p-6 rounded-xl border border-border">
-        <ConsoleLog events={events} isExecuting={isExecuting} />
-      </section>
+        {/* Right Column: Execution Panels */}
+        <div className="col-span-7 flex flex-col gap-3 h-full min-h-0">
+          {/* Top Half: Commit Roadmap */}
+          <div className="h-1/2 min-h-0 bg-surface border border-border rounded-lg flex flex-col overflow-hidden">
+            <CommitRoadmap commits={commits} />
+          </div>
 
-      <div className="flex justify-end">
-        <Button onClick={handleExecute} disabled={!canExecute} variant="primary" size="lg">
-          {isExecuting ? "Executing Plan..." : "Execute Plan"}
-        </Button>
+          {/* Bottom Half: Console Execution Log */}
+          <div className="h-1/2 min-h-0 bg-surface border border-border rounded-lg flex flex-col overflow-hidden">
+            <ConsoleLog events={events} isExecuting={isExecuting} />
+          </div>
+        </div>
       </div>
     </main>
   );
