@@ -5,11 +5,12 @@ import { CommitPlanForm } from "@/components/dashboard/commit-plan-form";
 import { CommitRoadmap } from "@/components/dashboard/commit-roadmap";
 import { ConsoleLog } from "@/components/dashboard/console-log";
 import { ContextInitializer } from "@/components/dashboard/context-initializer";
+import { ExecutionControls } from "@/components/dashboard/execution-controls";
 import { ProjectForm } from "@/components/dashboard/project-form";
 import type { ProjectFormData } from "@/components/dashboard/project-form";
-import { Button } from "@/components/ui/button";
 import { useAnalyze } from "@/hooks/use-analyze";
 import { useExecutePlan } from "@/hooks/use-execute-plan";
+import { useExecutionState } from "@/hooks/use-execution-state";
 import type { RoadmapCommit } from "@/types/commit";
 import type { CommitResultEvent, StatusEvent } from "@/types/sse";
 
@@ -53,12 +54,35 @@ export default function HomePage() {
   const [commits, setCommits] = useState<RoadmapCommit[]>([]);
   const [, setStreamId] = useState<string | null>(null);
 
-  // New states for Target Commit & Completed Toggles
   const [targetCommitId, setTargetCommitId] = useState<string | null>(null);
   const [completedCommitIds, setCompletedCommitIds] = useState<Set<string>>(new Set());
 
-  const { isExecuting, events, lastEvent, executePlan, connectionStatus } = useExecutePlan();
+  const { isExecuting, events, lastEvent, executePlan, pause, connectionStatus } = useExecutePlan();
+
   const { state: analyzeState, analyze, reset: resetAnalyze } = useAnalyze();
+
+  const {
+    savedProgress,
+    fetchState: fetchSavedState,
+    clearState: clearSavedState,
+  } = useExecutionState();
+
+  useEffect(() => {
+    if (!projectSetup.projectPath) return;
+    void fetchSavedState(projectSetup.projectPath);
+  }, [projectSetup.projectPath, fetchSavedState]);
+
+  useEffect(() => {
+    if (savedProgress?.results) {
+      const completedIds = new Set<string>();
+      savedProgress.results.forEach((res) => {
+        if (res.status === "completed") {
+          completedIds.add(res.commitId);
+        }
+      });
+      setCompletedCommitIds(completedIds);
+    }
+  }, [savedProgress]);
 
   const handleProjectChange = useCallback(
     (newValues: ProjectFormData) => {
@@ -154,6 +178,20 @@ export default function HomePage() {
     await executePlan(planContext, commitPlan, newStreamId);
   }, [projectSetup, commits, isExecuting, executePlan, targetCommitId]);
 
+  const handlePause = useCallback(async () => {
+    await pause();
+  }, [pause]);
+
+  const handleResume = useCallback(async () => {
+    await handleExecute();
+  }, [handleExecute]);
+
+  const handleClearSession = useCallback(async () => {
+    if (!projectSetup.projectPath) return;
+    await clearSavedState(projectSetup.projectPath);
+    setCompletedCommitIds(new Set());
+  }, [projectSetup.projectPath, clearSavedState]);
+
   useEffect(() => {
     if (!lastEvent) return;
 
@@ -218,7 +256,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Main Grid View (Viewport Constrained) */}
+      {/* Main Grid View */}
       <div className="grid grid-cols-12 gap-3 flex-1 min-h-0">
         {/* Left Column: Input & Context Panels */}
         <div className="col-span-5 flex flex-col gap-3 h-full min-h-0 overflow-y-auto pr-1">
@@ -241,15 +279,15 @@ export default function HomePage() {
             <CommitPlanForm value={planText} onChange={handlePlanChange} disabled={isExecuting} />
           </div>
 
-          <Button
-            onClick={handleExecute}
-            disabled={!canExecute}
-            variant="primary"
-            size="md"
-            className="w-full shrink-0 font-semibold"
-          >
-            {isExecuting ? "Executing Plan..." : "Execute Plan"}
-          </Button>
+          <ExecutionControls
+            isExecuting={isExecuting}
+            savedProgress={savedProgress}
+            canExecute={canExecute}
+            onExecute={handleExecute}
+            onPause={handlePause}
+            onResume={handleResume}
+            onClearSession={handleClearSession}
+          />
         </div>
 
         {/* Right Column: Execution Panels */}
