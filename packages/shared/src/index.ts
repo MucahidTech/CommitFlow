@@ -13,9 +13,25 @@ export { commitTypeEnum, commitStatusEnum } from "./schemas/commit-plan";
 export { commitItemSchema, commitItemInputSchema } from "./schemas/commit-plan";
 export { commitPlanSchema, commitPlanInputSchema } from "./schemas/commit-plan";
 export { projectContextSchema, projectContextInputSchema } from "./schemas/project-context";
+export {
+  fileInfoSchema,
+  gitSnapshotSchema,
+  configSnapshotSchema,
+  keyFileSchema,
+  projectSnapshotSchema,
+  projectSnapshotInputSchema,
+} from "./schemas/project-snapshot";
 
 // ─── Types (compile-time only) ──────────────────────────────
 export type { CommitItem, CommitItemInput } from "./schemas/commit-plan";
 export type { CommitPlan, CommitPlanInput } from "./schemas/commit-plan";
 export type { CommitStatus, CommitType } from "./schemas/commit-plan";
 export type { ProjectContext, ProjectContextInput } from "./schemas/project-context";
+export type {
+  FileInfo,
+  GitSnapshot,
+  ConfigSnapshot,
+  KeyFile,
+  ProjectSnapshot,
+  ProjectSnapshotInput,
+} from "./schemas/project-snapshot";
