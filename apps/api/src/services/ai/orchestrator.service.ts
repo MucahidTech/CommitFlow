@@ -55,6 +55,7 @@ export class OrchestratorService {
     projectContext: ProjectContext,
     snapshot: ProjectSnapshot,
     onStatusChange?: StatusCallback,
+    selectedModel?: string,
   ): Promise<CommitExecutionResult> {
     const isGit = await this.gitService.isGitRepository();
     if (!isGit) {
@@ -90,18 +91,21 @@ export class OrchestratorService {
       });
 
       onStatusChange?.("reviewing_code", attempts);
-      const review = await this.openrouter.reviewCode({
-        commitId: commit.id,
-        commitMessage: this.formatCommitMessage(commit),
-        projectContext: {
-          projectPath: projectContext.projectPath,
-          projectName: projectContext.projectName,
-          description: projectContext.description,
-          techStack: projectContext.techStack ?? [],
+      const review = await this.openrouter.reviewCode(
+        {
+          commitId: commit.id,
+          commitMessage: this.formatCommitMessage(commit),
+          projectContext: {
+            projectPath: projectContext.projectPath,
+            projectName: projectContext.projectName,
+            description: projectContext.description,
+            techStack: projectContext.techStack ?? [],
+          },
+          files: generated.files,
+          generationSummary: generated.summary,
         },
-        files: generated.files,
-        generationSummary: generated.summary,
-      });
+        selectedModel,
+      );
 
       if (!review.approved) {
         lastReviewFeedback = review.feedback;

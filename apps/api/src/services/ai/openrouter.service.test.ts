@@ -1,33 +1,65 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("../../config/env", () => ({
   env: {
-    DEEPSEEK_API_KEY: undefined,
-    DEEPSEEK_BASE_URL: "https://api.deepseek.com",
-    OPENROUTER_API_KEY: undefined,
+    OPENROUTER_API_KEY: "test-key",
     OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1",
-    OPENROUTER_REVIEW_MODEL: "qwen/qwen-2.5-coder-32b-instruct:free",
+    OPENROUTER_REVIEW_MODEL: "default/model",
   },
 }));
 
 import { OpenRouterService } from "./openrouter.service";
 
 describe("OpenRouterService", () => {
-  const service = new OpenRouterService();
+  let service: OpenRouterService;
+  let fetchMock: ReturnType<typeof vi.fn>;
 
-  it("throws when API key is not configured", async () => {
-    await expect(
-      service.reviewCode({
-        commitId: "001",
-        commitMessage: "test",
+  beforeEach(() => {
+    service = new OpenRouterService();
+    fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uses modelOverride when provided in reviewCode", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                approved: true,
+                feedback: "Looks good!",
+                issues: [],
+                suggestions: [],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    await service.reviewCode(
+      {
+        commitId: "c1",
+        commitMessage: "feat: test",
         projectContext: {
-          projectPath: "/tmp/test",
+          projectPath: "/path",
           projectName: "test",
           techStack: [],
         },
         files: [],
-        generationSummary: "test",
-      }),
-    ).rejects.toThrow("OPENROUTER_API_KEY is not configured");
+        generationSummary: "summary",
+      },
+      "custom/model-override",
+    );
+
+    expect(fetchMock).toHaveBeenCalled();
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(requestBody.model).toBe("custom/model-override");
   });
 });

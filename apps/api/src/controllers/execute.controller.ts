@@ -11,6 +11,7 @@ const executeRequestSchema = z.object({
   projectContext: projectContextSchema,
   commitPlan: commitPlanSchema,
   streamId: z.string().min(1).optional(),
+  selectedModel: z.string().optional(),
 });
 
 /**
@@ -38,7 +39,7 @@ export class ExecuteController {
         return;
       }
 
-      const { projectContext, commitPlan, streamId } = parsed.data;
+      const { projectContext, commitPlan, streamId, selectedModel } = parsed.data;
       const sseService = SseService.getInstance();
 
       // 2. Build snapshot ONCE for the entire plan
@@ -112,6 +113,7 @@ export class ExecuteController {
               });
             }
           },
+          selectedModel,
         );
 
         results.push({
