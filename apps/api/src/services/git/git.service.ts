@@ -57,7 +57,6 @@ export class GitService {
     }
   }
 
-  // ... باقي الدوال بدون تغيير
   async getStatus(): Promise<StatusResult> {
     return this.git.status();
   }
@@ -108,5 +107,32 @@ export class GitService {
 
   async getLastCommitHash(): Promise<string> {
     return this.git.revparse(["HEAD"]);
+  }
+
+  async getRecentCommits(count = 10): Promise<string[]> {
+    try {
+      const log = await this.git.log({ maxCount: count });
+      return log.all.map((c) => c.message);
+    } catch {
+      return [];
+    }
+  }
+
+  async getTotalCommitCount(): Promise<number> {
+    try {
+      const count = await this.git.raw(["rev-list", "--count", "HEAD"]);
+      return parseInt(count.trim(), 10) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  async getRemoteUrl(): Promise<string | undefined> {
+    try {
+      const remotes = await this.git.getRemotes(true);
+      return remotes[0]?.refs?.fetch;
+    } catch {
+      return undefined;
+    }
   }
 }

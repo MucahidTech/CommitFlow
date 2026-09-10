@@ -214,13 +214,18 @@ export class SnapshotService {
     }
 
     try {
-      const currentBranch = await this.gitService.getCurrentBranch();
+      const [currentBranch, recentCommits, totalCommits, remoteUrl] = await Promise.all([
+        this.gitService.getCurrentBranch(),
+        this.gitService.getRecentCommits(10),
+        this.gitService.getTotalCommitCount(),
+        this.gitService.getRemoteUrl(),
+      ]);
 
       return {
         currentBranch,
-        remoteUrl: undefined,
-        recentCommits: [],
-        totalCommits: 0,
+        remoteUrl,
+        recentCommits,
+        totalCommits,
       };
     } catch {
       return null;
