@@ -45,12 +45,17 @@ export default function HomePage() {
   const [projectSetup, setProjectSetup] = useState<ProjectFormData>({
     projectName: "",
     projectPath: "",
+    userContext: "",
     safeMode: true,
   });
 
   const [planText, setPlanText] = useState<string>("");
   const [commits, setCommits] = useState<RoadmapCommit[]>([]);
   const [, setStreamId] = useState<string | null>(null);
+
+  // New states for Target Commit & Completed Toggles
+  const [targetCommitId, setTargetCommitId] = useState<string | null>(null);
+  const [completedCommitIds, setCompletedCommitIds] = useState<Set<string>>(new Set());
 
   const { isExecuting, events, lastEvent, executePlan, connectionStatus } = useExecutePlan();
   const { state: analyzeState, analyze, reset: resetAnalyze } = useAnalyze();
@@ -87,6 +92,22 @@ export default function HomePage() {
     });
 
     setCommits(parsed);
+  }, []);
+
+  const handleToggleCompleted = useCallback((commitId: string) => {
+    setCompletedCommitIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(commitId)) {
+        next.delete(commitId);
+      } else {
+        next.add(commitId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectTarget = useCallback((commitId: string) => {
+    setTargetCommitId((prev) => (prev === commitId ? null : commitId));
   }, []);
 
   const handleAnalyze = useCallback(() => {
@@ -126,10 +147,12 @@ export default function HomePage() {
       projectPath: projectSetup.projectPath,
       projectName: projectSetup.projectName,
       safeMode: projectSetup.safeMode,
+      userContext: projectSetup.userContext || undefined,
+      targetCommitId: targetCommitId || undefined,
     };
 
     await executePlan(planContext, commitPlan, newStreamId);
-  }, [projectSetup, commits, isExecuting, executePlan]);
+  }, [projectSetup, commits, isExecuting, executePlan, targetCommitId]);
 
   useEffect(() => {
     if (!lastEvent) return;
@@ -148,15 +171,20 @@ export default function HomePage() {
     if (lastEvent.type === "commit_result") {
       const resultEvent = lastEvent as CommitResultEvent;
       setCommits((prev) =>
-        prev.map((c) =>
-          isSameCommit(c.id, resultEvent.commitId)
-            ? {
-                ...c,
-                status: resultEvent.status === "completed" ? "completed" : "failed",
-                error: resultEvent.error,
-              }
-            : c,
-        ),
+        prev.map((c) => {
+          if (isSameCommit(c.id, resultEvent.commitId)) {
+            const isCompleted = resultEvent.status === "completed";
+            if (isCompleted) {
+              setCompletedCommitIds((completedSet) => new Set(completedSet).add(c.id));
+            }
+            return {
+              ...c,
+              status: isCompleted ? "completed" : "failed",
+              error: resultEvent.error,
+            };
+          }
+          return c;
+        }),
       );
     }
   }, [lastEvent]);
@@ -228,7 +256,13 @@ export default function HomePage() {
         <div className="col-span-7 flex flex-col gap-3 h-full min-h-0">
           {/* Top Half: Commit Roadmap */}
           <div className="h-1/2 min-h-0 bg-surface border border-border rounded-lg flex flex-col overflow-hidden">
-            <CommitRoadmap commits={commits} />
+            <CommitRoadmap
+              commits={commits}
+              targetCommitId={targetCommitId}
+              completedCommitIds={completedCommitIds}
+              onToggleCompleted={handleToggleCompleted}
+              onSelectTarget={handleSelectTarget}
+            />
           </div>
 
           {/* Bottom Half: Console Execution Log */}

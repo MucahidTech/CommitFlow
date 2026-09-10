@@ -6,6 +6,7 @@ import { ProjectForm, type ProjectFormData } from "./project-form";
 const initialValues: ProjectFormData = {
   projectName: "",
   projectPath: "",
+  userContext: "",
   safeMode: true,
 };
 
@@ -43,6 +44,20 @@ describe("ProjectForm", () => {
     expect(handleChange).toHaveBeenCalledWith({
       ...initialValues,
       safeMode: false,
+    });
+  });
+
+  it("updates userContext field on user input", async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+    render(<ProjectForm values={initialValues} onChange={handleChange} />);
+
+    const textarea = screen.getByPlaceholderText(/Describe the project's goal/i);
+    await user.type(textarea, "X");
+
+    expect(handleChange).toHaveBeenCalledWith({
+      ...initialValues,
+      userContext: "X",
     });
   });
 });

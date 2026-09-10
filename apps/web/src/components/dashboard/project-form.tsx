@@ -3,10 +3,13 @@
 import { useRef, useState } from "react";
 import { z } from "zod";
 import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 
 const projectContextSchema = z.object({
   projectPath: z.string().min(1, "Project path is required"),
   projectName: z.string().min(1, "Project name is required"),
+  description: z.string().max(2000).optional(),
+  userContext: z.string().max(10000).optional(),
   safeMode: z.boolean(),
 });
 
@@ -68,7 +71,7 @@ export function ProjectForm({ values, onChange, disabled }: ProjectFormProps) {
   };
 
   return (
-    <div className="bg-surface border border-border rounded-lg p-3 text-xs space-y-2">
+    <div className="bg-surface border border-border rounded-lg p-3 text-xs space-y-2.5">
       <div className="flex items-center justify-between border-b border-border pb-1.5">
         <h2 className="font-semibold text-text uppercase tracking-wider text-[11px]">
           Project Setup
@@ -133,6 +136,16 @@ export function ProjectForm({ values, onChange, disabled }: ProjectFormProps) {
             <span className="text-xs text-red-400 mt-1 block">{errors.projectPath}</span>
           )}
         </div>
+
+        <Textarea
+          label="Project Vision & Context"
+          placeholder="Describe the project's goal, vision, architecture conventions, or specific rules for AI agents..."
+          value={values.userContext || ""}
+          onChange={(e) => handleChange("userContext", e.target.value)}
+          error={errors.userContext}
+          disabled={disabled}
+          rows={3}
+        />
       </div>
     </div>
   );
