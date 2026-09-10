@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ProjectForm } from "@/components/dashboard/project-form";
-import type { ProjectFormData } from "@/components/dashboard/project-form";
 import { CommitPlanForm } from "@/components/dashboard/commit-plan-form";
 import { CommitRoadmap } from "@/components/dashboard/commit-roadmap";
 import { ConsoleLog } from "@/components/dashboard/console-log";
+import { ContextInitializer } from "@/components/dashboard/context-initializer";
+import { ProjectForm } from "@/components/dashboard/project-form";
+import type { ProjectFormData } from "@/components/dashboard/project-form";
 import { Button } from "@/components/ui/button";
+import { useAnalyze } from "@/hooks/use-analyze";
 import { useExecutePlan } from "@/hooks/use-execute-plan";
 import type { RoadmapCommit } from "@/types/commit";
 import type { CommitResultEvent, StatusEvent } from "@/types/sse";
@@ -51,6 +53,17 @@ export default function HomePage() {
   const [, setStreamId] = useState<string | null>(null);
 
   const { isExecuting, events, lastEvent, executePlan, connectionStatus } = useExecutePlan();
+  const { state: analyzeState, analyze, reset: resetAnalyze } = useAnalyze();
+
+  const handleProjectChange = useCallback(
+    (newValues: ProjectFormData) => {
+      setProjectSetup(newValues);
+      if (newValues.projectPath !== projectSetup.projectPath) {
+        resetAnalyze();
+      }
+    },
+    [projectSetup.projectPath, resetAnalyze],
+  );
 
   const handlePlanChange = useCallback((text: string) => {
     setPlanText(text);
@@ -75,6 +88,11 @@ export default function HomePage() {
 
     setCommits(parsed);
   }, []);
+
+  const handleAnalyze = useCallback(() => {
+    if (!projectSetup.projectPath) return;
+    void analyze(projectSetup.projectPath);
+  }, [projectSetup.projectPath, analyze]);
 
   const handleExecute = useCallback(async () => {
     if (
@@ -174,11 +192,24 @@ export default function HomePage() {
 
       {/* Main Grid View (Viewport Constrained) */}
       <div className="grid grid-cols-12 gap-3 flex-1 min-h-0">
-        {/* Left Column: Input Panels */}
-        <div className="col-span-5 flex flex-col gap-3 h-full min-h-0">
-          <ProjectForm values={projectSetup} onChange={setProjectSetup} disabled={isExecuting} />
+        {/* Left Column: Input & Context Panels */}
+        <div className="col-span-5 flex flex-col gap-3 h-full min-h-0 overflow-y-auto pr-1">
+          <ProjectForm
+            values={projectSetup}
+            onChange={handleProjectChange}
+            disabled={isExecuting}
+          />
 
-          <div className="flex-1 min-h-0 flex flex-col">
+          <div className="bg-surface border border-border rounded-lg p-3 shrink-0">
+            <ContextInitializer
+              projectPath={projectSetup.projectPath || null}
+              state={analyzeState}
+              onAnalyze={handleAnalyze}
+              onReset={resetAnalyze}
+            />
+          </div>
+
+          <div className="flex-1 min-h-[160px] flex flex-col">
             <CommitPlanForm value={planText} onChange={handlePlanChange} disabled={isExecuting} />
           </div>
 
