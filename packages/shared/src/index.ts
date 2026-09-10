@@ -21,6 +21,11 @@ export {
   projectSnapshotSchema,
   projectSnapshotInputSchema,
 } from "./schemas/project-snapshot";
+export { commitResultSchema, executionStatusSchema } from "./schemas/execution-progress";
+export {
+  executionProgressSchema,
+  executionProgressInputSchema,
+} from "./schemas/execution-progress";
 
 // ─── Types (compile-time only) ──────────────────────────────
 export type { CommitItem, CommitItemInput } from "./schemas/commit-plan";
@@ -35,3 +40,5 @@ export type {
   ProjectSnapshot,
   ProjectSnapshotInput,
 } from "./schemas/project-snapshot";
+export type { CommitResult, ExecutionStatus } from "./schemas/execution-progress";
+export type { ExecutionProgress, ExecutionProgressInput } from "./schemas/execution-progress";
