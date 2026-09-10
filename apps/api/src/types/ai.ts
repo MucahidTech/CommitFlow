@@ -1,7 +1,4 @@
-/**
- * Types for AI service interactions.
- * These are internal to the API and not shared with the frontend.
- */
+import type { ProjectSnapshot } from "@commitflow/shared";
 
 /** A file's current content and metadata */
 export interface FileContext {
@@ -28,6 +25,12 @@ export interface GenerateCodeRequest {
   };
   /** Files relevant to this commit */
   files: FileContext[];
+  /** Project snapshot — sent once at the first attempt */
+  snapshot?: ProjectSnapshot;
+  /** Previous review feedback (for refinement attempts) */
+  previousFeedback?: string;
+  /** Previous review issues (for refinement attempts) */
+  previousIssues?: string[];
 }
 
 /** A single file operation */
@@ -74,21 +77,4 @@ export interface CodeReviewResponse {
   issues: string[];
   /** Suggested improvements (empty if approved) */
   suggestions: string[];
-}
-
-/** Request to generate code for a single commit */
-export interface GenerateCodeRequest {
-  commitId: string;
-  commitMessage: string;
-  projectContext: {
-    projectPath: string;
-    projectName: string;
-    description?: string;
-    techStack: string[];
-  };
-  files: FileContext[];
-  /** Previous review feedback (for refinement attempts) */
-  previousFeedback?: string;
-  /** Previous review issues (for refinement attempts) */
-  previousIssues?: string[];
 }

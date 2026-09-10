@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ProjectSnapshot } from "@commitflow/shared";
 import { env } from "../../config/env";
 import type { GenerateCodeRequest, GenerateCodeResponse } from "../../types/ai";
 
@@ -99,33 +100,47 @@ Rules:
   }
 
   private buildUserPrompt(request: GenerateCodeRequest): string {
-    let prompt = `Project: ${request.projectContext.projectName}\nCommit Message: ${request.commitMessage}`;
+    let prompt = "";
 
-    if (request.projectContext.description) {
-      prompt += `\nDescription: ${request.projectContext.description}`;
+    // Project snapshot — sent only at the first attempt
+    if (request.snapshot) {
+      prompt += `${this.buildSnapshotSection(request.snapshot)}\n\n`;
     }
 
-    if (request.projectContext.techStack.length > 0) {
-      prompt += `\nTech Stack: ${request.projectContext.techStack.join(", ")}`;
-    }
+    // Commit details
+    prompt += `═══ COMMIT TO IMPLEMENT ═══
+Commit ID: ${request.commitId}
+Commit Message: ${request.commitMessage}
 
-    if (request.files && request.files.length > 0) {
-      prompt += `\n\n═══ EXISTING FILES CONTEXT ═══\n`;
-      for (const file of request.files) {
-        prompt += `\nFile: ${file.path}\n\`\`\`\n${file.content}\n\`\`\`\n`;
-      }
-    }
+Project: ${request.projectContext.projectName}
+Path: ${request.projectContext.projectPath}
+Description: ${request.projectContext.description ?? "N/A"}
+Tech Stack: ${request.projectContext.techStack.join(", ") || "N/A"}
+`;
+
+    // File contexts
+    const filesContext =
+      request.files.length > 0
+        ? request.files
+            .map((file) => {
+              const status = file.exists ? "EXISTS" : "NEW";
+              return `--- FILE: ${file.path} (${status}) ---\n${file.content || "(empty)"}`;
+            })
+            .join("\n\n")
+        : "No file context provided.";
+
+    prompt += `\n═══ CURRENT FILE CONTEXTS ═══\n${filesContext}\n`;
 
     if (request.previousIssues && request.previousIssues.length > 0) {
-      prompt += `\n\n═══ CODE REVIEW ISSUES TO FIX ═══\n`;
+      prompt += `\n═══ CODE REVIEW ISSUES TO FIX ═══\n`;
       for (const issue of request.previousIssues) {
         prompt += `- ${issue}\n`;
       }
     }
 
+    // Refinement feedback
     if (request.previousFeedback) {
-      prompt += `\n\n═══ QUALITY GATE FAILURE - FIX REQUIRED ═══
-
+      prompt += `\n═══ QUALITY GATE FAILURE - FIX REQUIRED ═══
 Your previous attempt FAILED compilation/quality checks:
 
 ${request.previousFeedback}
@@ -137,6 +152,71 @@ CRITICAL FIX INSTRUCTIONS:
 4. Verify import paths, exported types, and function signatures.`;
     }
 
+    prompt += `\n\nGenerate the exact file changes needed to implement this commit.`;
     return prompt;
+  }
+
+  /**
+   * Build the snapshot section of the prompt.
+   * Sends the complete project context once at the start.
+   */
+  private buildSnapshotSection(snapshot: ProjectSnapshot): string {
+    const parts: string[] = [];
+
+    parts.push(`═══ PROJECT SNAPSHOT ═══`);
+    parts.push(`Project: ${snapshot.projectName}`);
+    parts.push(`Tech Stack: ${snapshot.techStack.join(", ") || "unknown"}`);
+
+    if (snapshot.git) {
+      parts.push(`\nGit:`);
+      parts.push(`  Branch: ${snapshot.git.currentBranch}`);
+      parts.push(`  Total Commits: ${snapshot.git.totalCommits}`);
+      if (snapshot.git.remoteUrl) {
+        parts.push(`  Remote: ${snapshot.git.remoteUrl}`);
+      }
+      if (snapshot.git.recentCommits.length > 0) {
+        parts.push(`  Recent commits:`);
+        for (const msg of snapshot.git.recentCommits.slice(0, 5)) {
+          parts.push(`    - ${msg}`);
+        }
+      }
+    } else {
+      parts.push(`\nGit: not a repository (empty or new project)`);
+    }
+
+    // File structure — summarized
+    if (snapshot.structure.length > 0) {
+      const totalFiles = snapshot.structure.length;
+      parts.push(`\nFile Structure (${totalFiles} files, showing top-level):`);
+
+      // Group by top-level directory
+      const groups = new Map<string, number>();
+      for (const file of snapshot.structure) {
+        const topLevel = file.path.split("/")[0] ?? file.path;
+        groups.set(topLevel, (groups.get(topLevel) ?? 0) + 1);
+      }
+
+      for (const [dir, count] of Array.from(groups.entries()).slice(0, 15)) {
+        parts.push(`  ${dir}/ (${count} files)`);
+      }
+    } else {
+      parts.push(`\nFile Structure: empty (new project)`);
+    }
+
+    // Key files content
+    if (snapshot.keyFiles.length > 0) {
+      parts.push(`\nKey Files:`);
+      for (const file of snapshot.keyFiles) {
+        parts.push(`\n--- ${file.path} (${file.reason}) ---`);
+        // Limit each key file to avoid prompt bloat
+        const truncated = file.content.slice(0, 3000);
+        parts.push(truncated);
+        if (file.content.length > 3000) {
+          parts.push(`... (truncated, ${file.content.length - 3000} more chars)`);
+        }
+      }
+    }
+
+    return parts.join("\n");
   }
 }

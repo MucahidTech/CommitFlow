@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import type { CommitExecutionStatus } from "../services/ai/orchestrator.service";
 import { OrchestratorService } from "../services/ai/orchestrator.service";
+import { SnapshotService } from "../services/snapshot/snapshot.service";
 import { SseService } from "../services/sse/sse.service";
 
 /** Validation schema for execute request body */
@@ -40,10 +41,33 @@ export class ExecuteController {
       const { projectContext, commitPlan, streamId } = parsed.data;
       const sseService = SseService.getInstance();
 
-      // 2. Initialize orchestrator
+      // 2. Build snapshot ONCE for the entire plan
+      if (streamId) {
+        sseService.broadcast(streamId, {
+          type: "snapshot_started",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const snapshotService = new SnapshotService(projectContext.projectPath);
+      const snapshot = await snapshotService.buildSnapshot();
+
+      if (streamId) {
+        sseService.broadcast(streamId, {
+          type: "snapshot_completed",
+          projectName: snapshot.projectName,
+          techStack: snapshot.techStack,
+          fileCount: snapshot.structure.length,
+          keyFileCount: snapshot.keyFiles.length,
+          hasGit: snapshot.git !== null,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // 3. Initialize orchestrator
       const orchestrator = new OrchestratorService(projectContext.projectPath);
 
-      // 3. Broadcast plan start
+      // 4. Broadcast plan start
       if (streamId) {
         sseService.broadcast(streamId, {
           type: "plan_started",
@@ -53,7 +77,7 @@ export class ExecuteController {
         });
       }
 
-      // 4. Execute commits sequentially
+      // 5. Execute commits sequentially
       const results: {
         commitId: string;
         status: CommitExecutionStatus;
@@ -75,6 +99,7 @@ export class ExecuteController {
         const result = await orchestrator.executeCommit(
           commit,
           projectContext,
+          snapshot,
           (status, attempt, message) => {
             if (streamId) {
               sseService.broadcast(streamId, {
@@ -114,7 +139,7 @@ export class ExecuteController {
         }
       }
 
-      // 5. Broadcast plan completion
+      // 6. Broadcast plan completion
       const successCount = results.filter((r) => r.status === "completed").length;
       const failedCount = results.filter((r) => r.status === "failed").length;
 
@@ -128,7 +153,7 @@ export class ExecuteController {
         });
       }
 
-      // 6. Send final response
+      // 7. Send final response
       res.json({
         success: failedCount === 0,
         totalCommits: commitPlan.commits.length,
@@ -138,7 +163,7 @@ export class ExecuteController {
       });
       return;
     } catch (error) {
-      // 7. Handle unexpected errors
+      // 8. Handle unexpected errors
       const message = error instanceof Error ? error.message : "Internal server error";
       res.status(500).json({
         success: false,

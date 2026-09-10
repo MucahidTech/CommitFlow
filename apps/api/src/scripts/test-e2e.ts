@@ -13,6 +13,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { OrchestratorService } from "../services/ai/orchestrator.service";
+import { SnapshotService } from "../services/snapshot/snapshot.service";
 import { FileService } from "../services/filesystem/file.service";
 import { env } from "../config/env";
 import type { CommitItem, ProjectContext } from "@commitflow/shared";
@@ -127,7 +128,11 @@ async function runE2eTest(): Promise<void> {
   const files = await fileService.listFiles();
   logStatus(`Found ${files.length} project files: ${files.join(", ")}`, "info");
 
-  // 3. Initialize Orchestrator
+  // 3. Build Project Snapshot & Initialize Orchestrator
+  logStatus("Building project snapshot...", "info");
+  const snapshotService = new SnapshotService(PLAYGROUND_PATH);
+  const snapshot = await snapshotService.buildSnapshot();
+
   logStatus("Initializing OrchestratorService...", "info");
   const orchestrator = new OrchestratorService(PLAYGROUND_PATH);
 
@@ -139,7 +144,12 @@ async function runE2eTest(): Promise<void> {
   console.log("--------------------------------------------------");
 
   const startTime = Date.now();
-  const result = await orchestrator.executeCommit(TEST_COMMIT, TEST_CONTEXT, onStatusChange);
+  const result = await orchestrator.executeCommit(
+    TEST_COMMIT,
+    TEST_CONTEXT,
+    snapshot,
+    onStatusChange,
+  );
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
   console.log("--------------------------------------------------");

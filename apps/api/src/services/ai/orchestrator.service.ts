@@ -1,4 +1,4 @@
-import type { CommitItem, ProjectContext } from "@commitflow/shared";
+import type { CommitItem, ProjectContext, ProjectSnapshot } from "@commitflow/shared";
 import type { FileContext, GenerateCodeResponse } from "../../types/ai";
 import { FileService } from "../filesystem/file.service";
 import { GitService } from "../git/git.service";
@@ -53,6 +53,7 @@ export class OrchestratorService {
   async executeCommit(
     commit: CommitItem,
     projectContext: ProjectContext,
+    snapshot: ProjectSnapshot,
     onStatusChange?: StatusCallback,
   ): Promise<CommitExecutionResult> {
     const isGit = await this.gitService.isGitRepository();
@@ -83,6 +84,7 @@ export class OrchestratorService {
           techStack: projectContext.techStack ?? [],
         },
         files: fileContexts,
+        snapshot: attempts === 1 ? snapshot : undefined,
         previousFeedback: lastReviewFeedback,
         previousIssues: lastReviewIssues,
       });
