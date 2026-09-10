@@ -32,6 +32,7 @@ export function useExecutePlan() {
       projectContext: Record<string, unknown>,
       commitPlan: Record<string, unknown>,
       streamId: string,
+      selectedModel?: string,
     ): Promise<void> => {
       setState({
         isExecuting: true,
@@ -46,7 +47,7 @@ export function useExecutePlan() {
         const response = await fetch(`${API_BASE_URL}/execute`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectContext, commitPlan, streamId }),
+          body: JSON.stringify({ projectContext, commitPlan, streamId, selectedModel }),
         });
 
         if (!response.ok) {

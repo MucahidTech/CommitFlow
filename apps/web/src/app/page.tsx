@@ -13,6 +13,8 @@ import { useExecutePlan } from "@/hooks/use-execute-plan";
 import { useExecutionState } from "@/hooks/use-execution-state";
 import type { RoadmapCommit } from "@/types/commit";
 import type { CommitResultEvent, StatusEvent } from "@/types/sse";
+import { ModelSelector } from "@/components/dashboard/model-selector";
+import { useModels } from "@/hooks/use-models";
 
 function generateStreamId(): string {
   return `stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -60,6 +62,15 @@ export default function HomePage() {
   const { isExecuting, events, lastEvent, executePlan, pause, connectionStatus } = useExecutePlan();
 
   const { state: analyzeState, analyze, reset: resetAnalyze } = useAnalyze();
+
+  const {
+    models,
+    selectedModel,
+    isLoading: isModelsLoading,
+    error: modelsError,
+    refresh: refreshModels,
+    selectModel,
+  } = useModels();
 
   const {
     savedProgress,
@@ -175,7 +186,7 @@ export default function HomePage() {
       targetCommitId: targetCommitId || undefined,
     };
 
-    await executePlan(planContext, commitPlan, newStreamId);
+    await executePlan(planContext, commitPlan, newStreamId, selectedModel ?? undefined);
   }, [projectSetup, commits, isExecuting, executePlan, targetCommitId]);
 
   const handlePause = useCallback(async () => {
@@ -240,6 +251,16 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <ModelSelector
+            models={models}
+            selectedModel={selectedModel}
+            isLoading={isModelsLoading}
+            error={modelsError}
+            onSelect={selectModel}
+            onRefresh={refreshModels}
+            disabled={isExecuting}
+          />
+
           {connectionStatus !== "idle" && (
             <span className="text-[11px] px-2 py-0.5 rounded border border-border bg-surface text-text-muted font-mono">
               SSE: <strong className="text-text capitalize">{connectionStatus}</strong>
