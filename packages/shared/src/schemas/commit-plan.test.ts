@@ -133,4 +133,47 @@ describe("commitPlanSchema", () => {
     const { projectPath: _projectPath, ...withoutPath } = validPlan;
     expect(() => commitPlanSchema.parse(withoutPath)).toThrow();
   });
+
+  it("accepts startFromCommitId and completedCommitIds", () => {
+    const result = commitPlanSchema.parse({
+      ...validPlan,
+      startFromCommitId: "015",
+      completedCommitIds: ["001", "002", "003"],
+      commits: [
+        {
+          id: "015",
+          phase: 1,
+          order: 15,
+          type: "feat" as const,
+          subject: "add feature",
+        },
+      ],
+    });
+    expect(result.startFromCommitId).toBe("015");
+    expect(result.completedCommitIds).toHaveLength(3);
+  });
+
+  it("defaults completedCommitIds to empty array", () => {
+    const result = commitPlanSchema.parse(validPlan);
+    expect(result.completedCommitIds).toEqual([]);
+    expect(result.startFromCommitId).toBeUndefined();
+  });
+
+  it("rejects completedCommitIds longer than 500 items", () => {
+    expect(() =>
+      commitPlanSchema.parse({
+        ...validPlan,
+        completedCommitIds: Array.from({ length: 501 }, (_, i) => String(i).padStart(3, "0")),
+      }),
+    ).toThrow();
+  });
+
+  it("rejects startFromCommitId longer than 10 chars", () => {
+    expect(() =>
+      commitPlanSchema.parse({
+        ...validPlan,
+        startFromCommitId: "12345678901",
+      }),
+    ).toThrow();
+  });
 });

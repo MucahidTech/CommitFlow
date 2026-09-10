@@ -76,7 +76,15 @@ export const commitPlanSchema = z
     /** Human-readable project name */
     projectName: z.string().min(1).max(100),
 
-    /** List of commits to execute in order */
+    /**
+     * The commit ID to start execution from.
+     * If not provided, execution starts from the first commit.
+     */
+    startFromCommitId: z.string().min(1).max(10).optional(),
+    /**
+     * List of commit IDs already completed before this plan.
+     */
+    completedCommitIds: z.array(z.string().min(1).max(10)).max(500).default([]),
     commits: z.array(commitItemSchema).min(1),
   })
   .strict();
@@ -85,6 +93,7 @@ export const commitPlanSchema = z
  * Input schema for creating a commit plan (commits without status).
  */
 export const commitPlanInputSchema = commitPlanSchema.extend({
+  completedCommitIds: z.array(z.string().min(1).max(10)).max(500).optional().default([]),
   commits: z.array(commitItemInputSchema).min(1),
 });
 

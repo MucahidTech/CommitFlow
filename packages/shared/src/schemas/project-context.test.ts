@@ -30,6 +30,34 @@ describe("projectContextSchema", () => {
     expect(result.safeMode).toBe(false);
   });
 
+  it("accepts userContext field", () => {
+    const result = projectContextSchema.parse({
+      ...validContext,
+      userContext:
+        "This is a SaaS platform for X. Use TypeScript strict, prefer functional style, avoid classes.",
+    });
+    expect(result.userContext).toBeDefined();
+    expect(result.userContext).toContain("SaaS");
+  });
+
+  it("accepts long userContext up to 10000 characters", () => {
+    const longContext = "a".repeat(10000);
+    const result = projectContextSchema.parse({
+      ...validContext,
+      userContext: longContext,
+    });
+    expect(result.userContext).toHaveLength(10000);
+  });
+
+  it("rejects userContext longer than 10000 chars", () => {
+    expect(() =>
+      projectContextSchema.parse({
+        ...validContext,
+        userContext: "a".repeat(10001),
+      }),
+    ).toThrow();
+  });
+
   it("rejects empty projectPath", () => {
     expect(() => projectContextSchema.parse({ ...validContext, projectPath: "" })).toThrow();
   });
@@ -60,5 +88,13 @@ describe("projectContextInputSchema", () => {
     });
     expect(result.projectName).toBe("my-project");
     expect(result.description).toBeUndefined();
+  });
+
+  it("accepts userContext in input schema", () => {
+    const result = projectContextInputSchema.parse({
+      projectPath: "/tmp/test-project",
+      userContext: "Build a REST API",
+    });
+    expect(result.userContext).toBe("Build a REST API");
   });
 });
