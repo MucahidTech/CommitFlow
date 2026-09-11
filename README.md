@@ -20,15 +20,27 @@
 
 ## ✨ Key Features
 
-- 📜 **Commit Plan Execution** — Parse and execute structured commit plans with atomic commits.
-- 🤖 **Two-Agent AI Orchestration** — DeepSeek generates code, OpenRouter reviews it before application.
-- 📂 **File Context Engine** — Reads current file contents before modification to prevent data loss.
-- 🛡️ **Quality Gates** — Automatic formatting and type checking before each commit.
-- 🔄 **Error Feedback Loop** — Automatic retry with targeted error feedback on quality failures.
-- ⚡ **Real-time Progress** — Server-Sent Events (SSE) streaming live status to the dashboard.
-- 🖥️ **Interactive Dashboard** — Next.js UI with commit roadmap visualization and live logs.
-- 🔒 **Safe Mode** — Preview changes without committing to git (default: ON).
-- 🧪 **E2E Testing** — Full pipeline verification with an isolated playground environment.
+### Core Capabilities
+
+- 📜 **Commit Plan Execution** — Parse and execute structured commit plans with atomic git commits.
+- 🤖 **Two-Agent AI Orchestration** — DeepSeek generates code while OpenRouter acts as an automated reviewer.
+- 🛡️ **Quality Gates** — Automatic code formatting and TypeScript verification before applying changes.
+- 🔄 **Error Feedback Loop** — Self-correcting retry loop using targeted error feedback on failed builds.
+
+### Context & Control
+
+- 🔍 **Project Snapshot & Context** — Deep scanning of existing projects to detect code structure and tech stack.
+- 🎯 **Target Commit Selection** — Start or resume execution from any specific commit in the roadmap.
+- ⏸️ **Pause & Resume Workflows** — Safely interrupt and persist long-running task states to `.commitflow/state.json`.
+- 🎨 **Review Model Selector** — Dynamically switch between free or custom OpenRouter models from a live catalog.
+- 🔒 **Safe Mode** — Preview and test all generated changes safely without committing to Git (Default: ON).
+
+### Developer Experience
+
+- 📂 **File Context Engine** — Reads and preserves existing file structures to prevent data corruption.
+- ⚡ **Real-time Progress** — Server-Sent Events (SSE) stream live status updates directly to the client.
+- 🖥️ **Interactive Dashboard** — Next.js UI with commit roadmap visualization, control options, and live logs.
+- 🧪 **E2E Testing** — Isolated playground workspace for full automated pipeline verification.
 
 ---
 
@@ -36,36 +48,38 @@
 
 ```text
 commitflow/
+├── .github/workflows/ # CI/CD automation pipelines
 ├── apps/
 │ ├── api/ # Express server (AI orchestration, Git execution, Quality gates)
 │ └── web/ # Next.js 15 dashboard (Roadmap visualization, SSE live logs)
 └── packages/
-├── shared/ # Zod schemas & TypeScript types
-└── config-*/ # Shared TS & tooling configurations
+├── shared/ # Centralized TypeScript types, Zod schemas & shared utilities
+└── config-typescript/ # Shared TypeScript & tooling configurations
 ```
 
 | Component              | Technology                                                                 |
 | ---------------------- | -------------------------------------------------------------------------- |
 | **Monorepo**           | Turborepo + pnpm Workspaces                                                |
 | **Backend & Frontend** | Express 4, Node.js 22+, Next.js 15 (App Router), React 19, Tailwind CSS v4 |
-| **AI Models**          | DeepSeek (`deepseek-chat`), OpenRouter (`cohere/north-mini-code:free`)     |
-| **Validation**         | Zod schemas with inferred types                                            |
+| **AI Models**          | DeepSeek (`deepseek-chat`), OpenRouter (Configurable Free/Paid Models)     |
+| **Shared Layer**       | Zod schemas & shared inferred TypeScript types                             |
 | **Testing & Quality**  | Vitest, React Testing Library, ESLint, Prettier, TypeScript Strict         |
 
 ---
 
-## 🛠️ How It Works & Usage
+## 🛠️ How It Works
 
 ### Execution Pipeline
 
 ```text
 
-1. Submit Plan → API validates structure via Zod schemas
-2. Generation → DeepSeek reads target context & generates changes
-3. AI Review → OpenRouter inspects code (refines up to 3x)
-4. Quality Gate → Prettier & TypeScript compiler execute checks
-5. Git Commit → Rollback on error; apply atomic commit on pass (if Safe Mode OFF)
-6. Stream Status → Live updates pushed to Next.js dashboard via SSE
+1. Context Init → Scan project path, auto-init Git if empty, detect tech stack & snapshots
+2. Plan Submit → API validates structure via Zod schemas and target commit configurations
+3. Generation → DeepSeek reads target context & generates changes
+4. AI Review → OpenRouter inspects code (refines up to 3x)
+5. Quality Gate → Prettier & TypeScript compiler execute checks
+6. Git Commit → Rollback on error; apply atomic commit on pass (if Safe Mode OFF)
+7. Stream Status → Live updates pushed to Next.js dashboard via SSE with Pause/Resume controls
 ```
 
 ---
@@ -141,6 +155,16 @@ pnpm dev
 ```
 
 Open **http://localhost:3000** to access the dashboard.
+
+---
+
+## 📖 Documentation
+
+| Document                       | Description                                                  |
+| ------------------------------ | ------------------------------------------------------------ |
+| [README](./README.md)          | Overview, quick start, tech stack (this file)                |
+| [Usage Guide](./docs/USAGE.md) | Detailed workflows: snapshots, pause/resume, model selection |
+| [License](./LICENSE)           | PolyForm Noncommercial License 1.0.0                         |
 
 ---
 
