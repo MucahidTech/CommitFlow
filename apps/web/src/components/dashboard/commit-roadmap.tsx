@@ -78,6 +78,8 @@ function CommitItem({
 }: CommitItemProps) {
   const fullMessage = `${commit.type}${commit.scope ? `(${commit.scope})` : ""}: ${commit.subject}`;
 
+  const effectiveStatus = isCompleted ? "completed" : commit.status;
+
   return (
     <div
       className={`
@@ -124,7 +126,7 @@ function CommitItem({
         </div>
       </div>
 
-      <Badge color={STATUS_COLORS[commit.status]}>{STATUS_LABELS[commit.status]}</Badge>
+      <Badge color={STATUS_COLORS[effectiveStatus]}>{STATUS_LABELS[effectiveStatus]}</Badge>
     </div>
   );
 }

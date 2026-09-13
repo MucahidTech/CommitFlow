@@ -73,3 +73,54 @@ describe("CommitRoadmap", () => {
     expect(handleSelectTarget).toHaveBeenCalledWith("001");
   });
 });
+
+it("shows 'Completed' badge when isCompleted is true even if status is in_progress", () => {
+  const commits: RoadmapCommit[] = [
+    {
+      id: "001",
+      phase: 1,
+      order: 1,
+      type: "feat",
+      subject: "test",
+      status: "in_progress",
+    },
+  ];
+
+  render(
+    <CommitRoadmap
+      commits={commits}
+      targetCommitId={null}
+      completedCommitIds={new Set(["001"])}
+      onToggleCompleted={vi.fn()}
+      onSelectTarget={vi.fn()}
+    />,
+  );
+
+  expect(screen.getByText("Completed")).toBeInTheDocument();
+  expect(screen.queryByText("In Progress")).not.toBeInTheDocument();
+});
+
+it("shows API status when isCompleted is false", () => {
+  const commits: RoadmapCommit[] = [
+    {
+      id: "001",
+      phase: 1,
+      order: 1,
+      type: "feat",
+      subject: "test",
+      status: "failed",
+    },
+  ];
+
+  render(
+    <CommitRoadmap
+      commits={commits}
+      targetCommitId={null}
+      completedCommitIds={new Set()}
+      onToggleCompleted={vi.fn()}
+      onSelectTarget={vi.fn()}
+    />,
+  );
+
+  expect(screen.getByText("Failed")).toBeInTheDocument();
+});
