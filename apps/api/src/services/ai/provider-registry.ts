@@ -26,7 +26,7 @@ export const PROVIDER_REGISTRY: Record<AiProvider, ProviderDefaults> = {
   },
   openrouter: {
     baseUrl: "https://openrouter.ai/api/v1",
-    defaultModel: "qwen/qwen-2.5-coder-32b-instruct:free",
+    defaultModel: "cohere/north-mini-code:free",
     extraHeaders: {
       "HTTP-Referer": "http://localhost:3000",
       "X-Title": "CommitFlow",
@@ -34,6 +34,6 @@ export const PROVIDER_REGISTRY: Record<AiProvider, ProviderDefaults> = {
   },
   groq: {
     baseUrl: "https://api.groq.com/openai/v1",
-    defaultModel: "llama-3.3-70b-versatile",
+    defaultModel: "openai/gpt-oss-120b",
   },
 };

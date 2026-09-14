@@ -19,8 +19,8 @@ export const PROVIDER_BASE_URLS: Record<AiProvider, string> = {
 /** Default models for each provider */
 export const PROVIDER_DEFAULT_MODELS: Record<AiProvider, string> = {
   deepseek: "deepseek-chat",
-  openrouter: "qwen/qwen-2.5-coder-32b-instruct:free",
-  groq: "llama-3.3-70b-versatile",
+  groq: "openai/gpt-oss-120b",
+  openrouter: "cohere/north-mini-code:free",
 };
 
 /** Help text for API key fields */
