@@ -2,7 +2,7 @@
  * E2E Integration Test Script
  *
  * Tests the full CommitFlow pipeline:
- * AI generation → OpenRouter review → File writing → Quality gate → Git commit
+ * AI generation → AI review → File writing → Quality gate → Git commit
  *
  * Usage:
  *     pnpm --filter @commitflow/api e2e
@@ -12,11 +12,11 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
+import type { CommitItem, ProjectContext, ProvidersConfig } from "@commitflow/shared";
 import { OrchestratorService } from "../services/ai/orchestrator.service";
 import { SnapshotService } from "../services/snapshot/snapshot.service";
 import { FileService } from "../services/filesystem/file.service";
 import { env } from "../config/env";
-import type { CommitItem, ProjectContext } from "@commitflow/shared";
 import type { StatusCallback } from "../services/ai/orchestrator.service";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,6 +43,39 @@ const TEST_CONTEXT: ProjectContext = {
   existingFiles: [],
   safeMode: false,
 };
+
+/**
+ * Build providers config from env variables.
+ * Uses the same fallback mechanism as the API.
+ */
+function buildProvidersFromEnv(): ProvidersConfig {
+  // Generator — prefers DeepSeek, falls back to Groq, then OpenRouter
+  const generator = env.DEEPSEEK_API_KEY
+    ? { provider: "deepseek" as const, apiKey: env.DEEPSEEK_API_KEY }
+    : env.GROQ_API_KEY
+      ? { provider: "groq" as const, apiKey: env.GROQ_API_KEY }
+      : env.OPENROUTER_API_KEY
+        ? { provider: "openrouter" as const, apiKey: env.OPENROUTER_API_KEY }
+        : null;
+
+  // Reviewer — prefers Groq, falls back to OpenRouter, then DeepSeek
+  const reviewer = env.GROQ_API_KEY
+    ? { provider: "groq" as const, apiKey: env.GROQ_API_KEY }
+    : env.OPENROUTER_API_KEY
+      ? { provider: "openrouter" as const, apiKey: env.OPENROUTER_API_KEY }
+      : env.DEEPSEEK_API_KEY
+        ? { provider: "deepseek" as const, apiKey: env.DEEPSEEK_API_KEY }
+        : null;
+
+  if (!generator || !reviewer) {
+    throw new Error(
+      "No AI provider API key is configured. " +
+        "Add at least one of DEEPSEEK_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY to apps/api/.env",
+    );
+  }
+
+  return { generator, reviewer };
+}
 
 function logStatus(message: string, level: "info" | "success" | "error" | "warn" = "info"): void {
   const icons = {
@@ -112,12 +145,19 @@ async function runE2eTest(): Promise<void> {
   console.log("═══ CommitFlow E2E Integration Test ═══\n");
   console.log(`Playground Path: ${PLAYGROUND_PATH}`);
 
-  // 0. Verify Environment Variables
-  if (!env.DEEPSEEK_API_KEY || !env.OPENROUTER_API_KEY) {
-    logStatus("DEEPSEEK_API_KEY or OPENROUTER_API_KEY is missing in apps/api/.env", "error");
-    logStatus("Please provide valid API keys to run the E2E integration test.", "warn");
+  // 0. Build providers config from env
+  let providers: ProvidersConfig;
+  try {
+    providers = buildProvidersFromEnv();
+  } catch (error) {
+    logStatus(error instanceof Error ? error.message : "Provider setup failed", "error");
     process.exit(1);
   }
+
+  logStatus(
+    `Using providers: generator=${providers.generator.provider}, reviewer=${providers.reviewer.provider}`,
+    "info",
+  );
 
   // 1. Prepare Workspace & Isolated Git
   prepareIsolatedPlayground();
@@ -148,6 +188,7 @@ async function runE2eTest(): Promise<void> {
     TEST_COMMIT,
     TEST_CONTEXT,
     snapshot,
+    providers,
     onStatusChange,
   );
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
