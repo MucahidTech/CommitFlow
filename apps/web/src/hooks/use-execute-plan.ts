@@ -127,6 +127,15 @@ export function useExecutePlan() {
         method: "POST",
       });
 
+      if (response.status === 404) {
+        appendLocalEvent(
+          "local_error",
+          `Pause failed: session "${state.currentSessionId}" not found on server. ` +
+            "The execution may have already finished or the session was not registered.",
+        );
+        return false;
+      }
+
       if (!response.ok) {
         appendLocalEvent(
           "local_error",

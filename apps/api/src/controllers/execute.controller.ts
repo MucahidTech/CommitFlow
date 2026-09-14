@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import type { CommitExecutionStatus } from "../services/ai/orchestrator.service";
 import { OrchestratorService } from "../services/ai/orchestrator.service";
+import { ExecutionRegistry } from "../services/execution/registry.service";
 import { SnapshotService } from "../services/snapshot/snapshot.service";
 import { SseService } from "../services/sse/sse.service";
 
@@ -19,102 +20,104 @@ const executeRequestSchema = z.object({
  * Handles POST /execute — the main endpoint for running commit plans.
  */
 export class ExecuteController {
+  private readonly registry = ExecutionRegistry.getInstance();
+
   /**
    * Execute a commit plan.
    * Runs commits sequentially and streams progress via SSE.
    */
   async execute(req: Request, res: Response): Promise<void> {
-    try {
-      // 1. Validate request body
-      const parsed = executeRequestSchema.safeParse(req.body);
-      if (!parsed.success) {
-        res.status(400).json({
-          success: false,
-          error: "Invalid request body",
-          details: parsed.error.errors.map((e) => ({
-            path: e.path.join("."),
-            message: e.message,
-          })),
-        });
-        return;
-      }
-
-      const { projectContext, commitPlan, streamId, selectedModel } = parsed.data;
-      const sseService = SseService.getInstance();
-
-      // 2. Build snapshot ONCE for the entire plan
-      if (streamId) {
-        sseService.broadcast(streamId, {
-          type: "snapshot_started",
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      const snapshotService = new SnapshotService(projectContext.projectPath);
-      const snapshot = await snapshotService.buildSnapshot();
-
-      if (streamId) {
-        sseService.broadcast(streamId, {
-          type: "snapshot_completed",
-          projectName: snapshot.projectName,
-          techStack: snapshot.techStack,
-          fileCount: snapshot.structure.length,
-          keyFileCount: snapshot.keyFiles.length,
-          hasGit: snapshot.git !== null,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // 3. Initialize orchestrator
-      const orchestrator = new OrchestratorService(projectContext.projectPath);
-
-      // 4. Broadcast plan start
-      if (streamId) {
-        sseService.broadcast(streamId, {
-          type: "plan_started",
-          totalCommits: commitPlan.commits.length,
-          projectName: projectContext.projectName,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // 5. Execute commits sequentially
-      const results: {
-        commitId: string;
-        status: CommitExecutionStatus;
-        error?: string;
-      }[] = [];
-
-      const completedSet = new Set(commitPlan.completedCommitIds ?? []);
-
-      const startIndex = commitPlan.startFromCommitId
-        ? commitPlan.commits.findIndex((c) => c.id === commitPlan.startFromCommitId)
-        : 0;
-
-      const effectiveStartIndex = startIndex >= 0 ? startIndex : 0;
-
-      const commitsToExecute = commitPlan.commits.filter((commit, index) => {
-        if (completedSet.has(commit.id)) {
-          return false;
-        }
-        if (index < effectiveStartIndex) {
-          return false;
-        }
-        return true;
+    const parsed = executeRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid request body",
+        details: parsed.error.errors.map((e) => ({
+          path: e.path.join("."),
+          message: e.message,
+        })),
       });
+      return;
+    }
 
-      if (streamId) {
-        sseService.broadcast(streamId, {
-          type: "plan_started",
-          totalCommits: commitsToExecute.length,
-          skippedCommits: commitPlan.commits.length - commitsToExecute.length,
-          projectName: projectContext.projectName,
-          timestamp: new Date().toISOString(),
-        });
-      }
+    const { projectContext, commitPlan, streamId, selectedModel } = parsed.data;
+    const sseService = SseService.getInstance();
 
+    // Build snapshot ONCE for the entire plan
+    if (streamId) {
+      sseService.broadcast(streamId, {
+        type: "snapshot_started",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const snapshotService = new SnapshotService(projectContext.projectPath);
+    const snapshot = await snapshotService.buildSnapshot();
+
+    if (streamId) {
+      sseService.broadcast(streamId, {
+        type: "snapshot_completed",
+        projectName: snapshot.projectName,
+        techStack: snapshot.techStack,
+        fileCount: snapshot.structure.length,
+        keyFileCount: snapshot.keyFiles.length,
+        hasGit: snapshot.git !== null,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const orchestrator = new OrchestratorService(projectContext.projectPath);
+
+    // Filter commits to execute (skip completed + before startFrom)
+    const completedSet = new Set(commitPlan.completedCommitIds ?? []);
+    const startIndex = commitPlan.startFromCommitId
+      ? commitPlan.commits.findIndex((c) => c.id === commitPlan.startFromCommitId)
+      : 0;
+    const effectiveStartIndex = startIndex >= 0 ? startIndex : 0;
+
+    const commitsToExecute = commitPlan.commits.filter((commit, index) => {
+      if (completedSet.has(commit.id)) return false;
+      if (index < effectiveStartIndex) return false;
+      return true;
+    });
+
+    if (streamId) {
+      sseService.broadcast(streamId, {
+        type: "plan_started",
+        totalCommits: commitsToExecute.length,
+        skippedCommits: commitPlan.commits.length - commitsToExecute.length,
+        projectName: projectContext.projectName,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Register session for cooperative cancellation (pause)
+    const sessionId = streamId ?? `session-${Date.now()}`;
+    const controller = this.registry.register(sessionId);
+
+    const results: {
+      commitId: string;
+      status: CommitExecutionStatus;
+      error?: string;
+    }[] = [];
+
+    try {
       for (const commit of commitsToExecute) {
-        // Broadcast commit start
+        // Check pause signal before starting next commit
+        if (controller.signal.aborted) {
+          if (streamId) {
+            sseService.broadcast(streamId, {
+              type: "status",
+              commitId: commit.id,
+              status: "paused",
+              attempt: 0,
+              message: "Execution paused by user",
+              timestamp: new Date().toISOString(),
+            });
+          }
+          break;
+        }
+
         if (streamId) {
           sseService.broadcast(streamId, {
             type: "commit_started",
@@ -124,7 +127,6 @@ export class ExecuteController {
           });
         }
 
-        // Execute single commit
         const result = await orchestrator.executeCommit(
           commit,
           projectContext,
@@ -150,7 +152,6 @@ export class ExecuteController {
           error: result.error,
         });
 
-        // Broadcast commit result
         if (streamId) {
           sseService.broadcast(streamId, {
             type: "commit_result",
@@ -163,43 +164,38 @@ export class ExecuteController {
           });
         }
 
-        // If a commit fails, stop execution
         if (result.status === "failed") {
           break;
         }
       }
+    } finally {
+      // Always unregister the session, even on error
+      this.registry.unregister(sessionId);
+    }
 
-      // 6. Broadcast plan completion
-      const successCount = results.filter((r) => r.status === "completed").length;
-      const failedCount = results.filter((r) => r.status === "failed").length;
+    const successCount = results.filter((r) => r.status === "completed").length;
+    const failedCount = results.filter((r) => r.status === "failed").length;
+    const wasPaused = controller.signal.aborted;
 
-      if (streamId) {
-        sseService.broadcast(streamId, {
-          type: "done",
-          totalCommits: commitPlan.commits.length,
-          successCount,
-          failedCount,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // 7. Send final response
-      res.json({
-        success: failedCount === 0,
-        totalCommits: commitPlan.commits.length,
+    if (streamId) {
+      sseService.broadcast(streamId, {
+        type: "done",
+        totalCommits: commitsToExecute.length,
         successCount,
         failedCount,
-        results,
+        paused: wasPaused,
+        timestamp: new Date().toISOString(),
       });
-      return;
-    } catch (error) {
-      // 8. Handle unexpected errors
-      const message = error instanceof Error ? error.message : "Internal server error";
-      res.status(500).json({
-        success: false,
-        error: message,
-      });
-      return;
     }
+
+    res.json({
+      success: failedCount === 0,
+      paused: wasPaused,
+      totalCommits: commitsToExecute.length,
+      successCount,
+      failedCount,
+      results,
+    });
+    return;
   }
 }
