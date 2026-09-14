@@ -74,8 +74,11 @@ function formatEvent(event: SseEvent): string {
     case "connected":
       return `[${timestamp}] Connected to stream: ${String(event.streamId ?? "unknown")}`;
 
-    case "plan_started":
-      return `[${timestamp}] Plan started: ${String(event.totalCommits ?? 0)} commits`;
+    case "plan_started": {
+      const skipped = typeof event.skippedCommits === "number" ? event.skippedCommits : 0;
+      const skipText = skipped > 0 ? ` (${skipped} skipped)` : "";
+      return `[${timestamp}] Plan started: ${String(event.totalCommits ?? 0)} commits${skipText}`;
+    }
 
     case "commit_started":
       return `[${timestamp}] → Commit ${String(event.commitId ?? "?")}: ${String(event.message ?? "")}`;

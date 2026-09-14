@@ -85,7 +85,35 @@ export class ExecuteController {
         error?: string;
       }[] = [];
 
-      for (const commit of commitPlan.commits) {
+      const completedSet = new Set(commitPlan.completedCommitIds ?? []);
+
+      const startIndex = commitPlan.startFromCommitId
+        ? commitPlan.commits.findIndex((c) => c.id === commitPlan.startFromCommitId)
+        : 0;
+
+      const effectiveStartIndex = startIndex >= 0 ? startIndex : 0;
+
+      const commitsToExecute = commitPlan.commits.filter((commit, index) => {
+        if (completedSet.has(commit.id)) {
+          return false;
+        }
+        if (index < effectiveStartIndex) {
+          return false;
+        }
+        return true;
+      });
+
+      if (streamId) {
+        sseService.broadcast(streamId, {
+          type: "plan_started",
+          totalCommits: commitsToExecute.length,
+          skippedCommits: commitPlan.commits.length - commitsToExecute.length,
+          projectName: projectContext.projectName,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      for (const commit of commitsToExecute) {
         // Broadcast commit start
         if (streamId) {
           sseService.broadcast(streamId, {

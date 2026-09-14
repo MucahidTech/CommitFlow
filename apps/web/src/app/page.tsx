@@ -179,6 +179,8 @@ export default function HomePage() {
     const commitPlan = {
       projectPath: projectSetup.projectPath,
       projectName: projectSetup.projectName,
+      startFromCommitId: targetCommitId ?? undefined,
+      completedCommitIds: Array.from(completedCommitIds),
       commits: commits.map((c) => ({
         id: c.id,
         phase: c.phase,
@@ -194,11 +196,10 @@ export default function HomePage() {
       projectName: projectSetup.projectName,
       safeMode: projectSetup.safeMode,
       userContext: projectSetup.userContext || undefined,
-      targetCommitId: targetCommitId || undefined,
     };
 
     await executePlan(planContext, commitPlan, newStreamId, selectedModel ?? undefined);
-  }, [projectSetup, commits, isExecuting, executePlan, targetCommitId]);
+  }, [projectSetup, commits, isExecuting, executePlan, targetCommitId, completedCommitIds]);
 
   const handlePause = useCallback(async () => {
     await pause();
