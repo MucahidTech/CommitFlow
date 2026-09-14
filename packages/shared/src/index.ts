@@ -27,6 +27,11 @@ export {
   executionProgressInputSchema,
 } from "./schemas/execution-progress";
 export { openRouterModelSchema, modelsListResponseSchema } from "./schemas/openrouter-model";
+export {
+  aiProviderSchema,
+  providerConfigSchema,
+  providersConfigSchema,
+} from "./schemas/ai-provider";
 
 // ─── Types (compile-time only) ──────────────────────────────
 export type { CommitItem, CommitItemInput } from "./schemas/commit-plan";
@@ -44,3 +49,4 @@ export type {
 export type { CommitResult, ExecutionStatus } from "./schemas/execution-progress";
 export type { ExecutionProgress, ExecutionProgressInput } from "./schemas/execution-progress";
 export type { OpenRouterModel, ModelsListResponse } from "./schemas/openrouter-model";
+export type { AiProvider, ProviderConfig, ProvidersConfig } from "./schemas/ai-provider";

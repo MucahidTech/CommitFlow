@@ -1,5 +1,5 @@
-export { DeepSeekService } from "./deepseek.service";
-export { OpenRouterService } from "./openrouter.service";
+export { AiProviderService } from "./ai-provider.service";
+export { PROVIDER_REGISTRY } from "./provider-registry";
 export { ModelsFetcherService } from "./models-fetcher.service";
 export { OrchestratorService } from "./orchestrator.service";
 export type {
@@ -7,3 +7,4 @@ export type {
   CommitExecutionStatus,
   StatusCallback,
 } from "./orchestrator.service";
+export type { ProviderDefaults } from "./provider-registry";

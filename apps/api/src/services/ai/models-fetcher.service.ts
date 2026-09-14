@@ -1,5 +1,6 @@
 import type { OpenRouterModel } from "@commitflow/shared";
 import { env } from "../../config/env";
+import { PROVIDER_REGISTRY } from "./provider-registry";
 
 interface RawOpenRouterModel {
   id: string;
@@ -27,7 +28,7 @@ export class ModelsFetcherService {
   private readonly timeout = 15000;
 
   constructor() {
-    this.baseUrl = env.OPENROUTER_BASE_URL;
+    this.baseUrl = PROVIDER_REGISTRY.openrouter.baseUrl;
     this.apiKey = env.OPENROUTER_API_KEY;
   }
 

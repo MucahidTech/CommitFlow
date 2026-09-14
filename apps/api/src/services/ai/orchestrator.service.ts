@@ -1,10 +1,14 @@
-import type { CommitItem, ProjectContext, ProjectSnapshot } from "@commitflow/shared";
+import type {
+  CommitItem,
+  ProjectContext,
+  ProjectSnapshot,
+  ProvidersConfig,
+} from "@commitflow/shared";
 import type { FileContext, GenerateCodeResponse } from "../../types/ai";
 import { FileService } from "../filesystem/file.service";
 import { GitService } from "../git/git.service";
 import { QualityGateService } from "../quality/quality-gate.service";
-import { DeepSeekService } from "./deepseek.service";
-import { OpenRouterService } from "./openrouter.service";
+import { AiProviderService } from "./ai-provider.service";
 import { parseTsErrors, parseFormatErrors, formatErrorsForAi } from "../quality/error-parser";
 
 export type CommitExecutionStatus =
@@ -36,15 +40,13 @@ export type StatusCallback = (
 const MAX_ATTEMPTS = 3;
 
 export class OrchestratorService {
-  private readonly deepseek: DeepSeekService;
-  private readonly openrouter: OpenRouterService;
+  private readonly aiProvider: AiProviderService;
   private readonly fileService: FileService;
   private readonly gitService: GitService;
   private readonly qualityGate: QualityGateService;
 
   constructor(projectRoot: string) {
-    this.deepseek = new DeepSeekService();
-    this.openrouter = new OpenRouterService();
+    this.aiProvider = new AiProviderService();
     this.fileService = new FileService(projectRoot);
     this.gitService = new GitService(projectRoot);
     this.qualityGate = new QualityGateService(projectRoot);
@@ -54,8 +56,8 @@ export class OrchestratorService {
     commit: CommitItem,
     projectContext: ProjectContext,
     snapshot: ProjectSnapshot,
+    providers: ProvidersConfig,
     onStatusChange?: StatusCallback,
-    selectedModel?: string,
   ): Promise<CommitExecutionResult> {
     const isGit = await this.gitService.isGitRepository();
     if (!isGit) {
@@ -75,7 +77,7 @@ export class OrchestratorService {
       const fileContexts = await this.readProjectFiles();
 
       onStatusChange?.(attempts === 1 ? "generating_code" : "refining_code", attempts);
-      const generated = await this.deepseek.generateCode({
+      const generated = await this.aiProvider.generateCode(providers.generator, {
         commitId: commit.id,
         commitMessage: this.formatCommitMessage(commit),
         projectContext: {
@@ -91,21 +93,18 @@ export class OrchestratorService {
       });
 
       onStatusChange?.("reviewing_code", attempts);
-      const review = await this.openrouter.reviewCode(
-        {
-          commitId: commit.id,
-          commitMessage: this.formatCommitMessage(commit),
-          projectContext: {
-            projectPath: projectContext.projectPath,
-            projectName: projectContext.projectName,
-            description: projectContext.description,
-            techStack: projectContext.techStack ?? [],
-          },
-          files: generated.files,
-          generationSummary: generated.summary,
+      const review = await this.aiProvider.reviewCode(providers.reviewer, {
+        commitId: commit.id,
+        commitMessage: this.formatCommitMessage(commit),
+        projectContext: {
+          projectPath: projectContext.projectPath,
+          projectName: projectContext.projectName,
+          description: projectContext.description,
+          techStack: projectContext.techStack ?? [],
         },
-        selectedModel,
-      );
+        files: generated.files,
+        generationSummary: generated.summary,
+      });
 
       if (!review.approved) {
         lastReviewFeedback = review.feedback;

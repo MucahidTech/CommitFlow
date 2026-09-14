@@ -1,4 +1,5 @@
-import { commitPlanSchema, projectContextSchema } from "@commitflow/shared";
+import { commitPlanSchema, projectContextSchema, providersConfigSchema } from "@commitflow/shared";
+
 import type { Request, Response } from "express";
 import { z } from "zod";
 import type { CommitExecutionStatus } from "../services/ai/orchestrator.service";
@@ -12,7 +13,7 @@ const executeRequestSchema = z.object({
   projectContext: projectContextSchema,
   commitPlan: commitPlanSchema,
   streamId: z.string().min(1).optional(),
-  selectedModel: z.string().optional(),
+  providers: providersConfigSchema,
 });
 
 /**
@@ -40,7 +41,7 @@ export class ExecuteController {
       return;
     }
 
-    const { projectContext, commitPlan, streamId, selectedModel } = parsed.data;
+    const { projectContext, commitPlan, streamId, providers } = parsed.data;
     const sseService = SseService.getInstance();
 
     // Build snapshot ONCE for the entire plan
@@ -131,6 +132,7 @@ export class ExecuteController {
           commit,
           projectContext,
           snapshot,
+          providers,
           (status, attempt, message) => {
             if (streamId) {
               sseService.broadcast(streamId, {
@@ -143,7 +145,6 @@ export class ExecuteController {
               });
             }
           },
-          selectedModel,
         );
 
         results.push({
