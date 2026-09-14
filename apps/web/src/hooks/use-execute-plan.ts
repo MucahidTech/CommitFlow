@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useSse } from "./use-sse";
 import type { SseEvent } from "@/types/sse";
+import type { ProvidersConfig } from "@commitflow/shared";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -51,7 +52,7 @@ export function useExecutePlan() {
       projectContext: Record<string, unknown>,
       commitPlan: Record<string, unknown>,
       streamId: string,
-      selectedModel?: string,
+      providers: ProvidersConfig,
     ): Promise<void> => {
       setState({
         isExecuting: true,
@@ -67,7 +68,7 @@ export function useExecutePlan() {
         const response = await fetch(`${API_BASE_URL}/execute`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectContext, commitPlan, streamId, selectedModel }),
+          body: JSON.stringify({ projectContext, commitPlan, streamId, providers }),
         });
 
         if (!response.ok) {

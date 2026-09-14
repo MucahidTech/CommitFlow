@@ -53,7 +53,10 @@ describe("useExecutePlan", () => {
     const { result } = renderHook(() => useExecutePlan());
 
     await act(async () => {
-      await result.current.executePlan({ path: "/test" }, { commits: [] }, "stream-001", "gpt-4o");
+      await result.current.executePlan({ path: "/test" }, { commits: [] }, "stream-001", {
+        generator: { provider: "deepseek", apiKey: "sk" },
+        reviewer: { provider: "groq", apiKey: "gsk" },
+      });
     });
 
     expect(mockClearEvents).toHaveBeenCalledTimes(1);
@@ -66,7 +69,10 @@ describe("useExecutePlan", () => {
           projectContext: { path: "/test" },
           commitPlan: { commits: [] },
           streamId: "stream-001",
-          selectedModel: "gpt-4o",
+          providers: {
+            generator: { provider: "deepseek", apiKey: "sk" },
+            reviewer: { provider: "groq", apiKey: "gsk" },
+          },
         }),
       }),
     );
@@ -83,7 +89,10 @@ describe("useExecutePlan", () => {
     const { result } = renderHook(() => useExecutePlan());
 
     await act(async () => {
-      await result.current.executePlan({ path: "/test" }, { commits: [] }, "stream-001");
+      await result.current.executePlan({ path: "/test" }, { commits: [] }, "stream-001", {
+        generator: { provider: "deepseek", apiKey: "sk" },
+        reviewer: { provider: "groq", apiKey: "gsk" },
+      });
     });
 
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
@@ -107,7 +116,10 @@ describe("useExecutePlan", () => {
 
     // Trigger execution to set currentSessionId
     act(() => {
-      void result.current.executePlan({ path: "/test" }, {}, "stream-999");
+      void result.current.executePlan({ path: "/test" }, {}, "stream-999", {
+        generator: { provider: "deepseek", apiKey: "sk" },
+        reviewer: { provider: "groq", apiKey: "gsk" },
+      });
     });
 
     let pauseSuccess;

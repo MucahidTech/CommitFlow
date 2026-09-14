@@ -8,13 +8,14 @@ import { ContextInitializer } from "@/components/dashboard/context-initializer";
 import { ExecutionControls } from "@/components/dashboard/execution-controls";
 import { ProjectForm } from "@/components/dashboard/project-form";
 import type { ProjectFormData } from "@/components/dashboard/project-form";
+import { ProviderBadge } from "@/components/dashboard/provider-badge";
+import { ProviderConfigModal } from "@/components/dashboard/provider-config-modal";
 import { useAnalyze } from "@/hooks/use-analyze";
 import { useExecutePlan } from "@/hooks/use-execute-plan";
 import { useExecutionState } from "@/hooks/use-execution-state";
+import { useProviders } from "@/hooks/use-providers";
 import type { RoadmapCommit } from "@/types/commit";
 import type { CommitResultEvent, StatusEvent } from "@/types/sse";
-import { ModelSelector } from "@/components/dashboard/model-selector";
-import { useModels } from "@/hooks/use-models";
 
 function generateStreamId(): string {
   return `stream-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -58,6 +59,7 @@ export default function HomePage() {
 
   const [targetCommitId, setTargetCommitId] = useState<string | null>(null);
   const [completedCommitIds, setCompletedCommitIds] = useState<Set<string>>(new Set());
+  const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
 
   const { isExecuting, events, localEvents, lastEvent, executePlan, pause, connectionStatus } =
     useExecutePlan();
@@ -74,14 +76,7 @@ export default function HomePage() {
 
   const { state: analyzeState, analyze, reset: resetAnalyze } = useAnalyze();
 
-  const {
-    models,
-    selectedModel,
-    isLoading: isModelsLoading,
-    error: modelsError,
-    refresh: refreshModels,
-    selectModel,
-  } = useModels();
+  const { providers, isConfigured, updateProviders } = useProviders();
 
   const {
     savedProgress,
@@ -166,7 +161,8 @@ export default function HomePage() {
       !projectSetup.projectPath ||
       !projectSetup.projectName ||
       commits.length === 0 ||
-      isExecuting
+      isExecuting ||
+      !isConfigured
     ) {
       return;
     }
@@ -198,8 +194,17 @@ export default function HomePage() {
       userContext: projectSetup.userContext || undefined,
     };
 
-    await executePlan(planContext, commitPlan, newStreamId, selectedModel ?? undefined);
-  }, [projectSetup, commits, isExecuting, executePlan, targetCommitId, completedCommitIds]);
+    await executePlan(planContext, commitPlan, newStreamId, providers);
+  }, [
+    projectSetup,
+    commits,
+    isExecuting,
+    isConfigured,
+    executePlan,
+    targetCommitId,
+    completedCommitIds,
+    providers,
+  ]);
 
   const handlePause = useCallback(async () => {
     await pause();
@@ -251,7 +256,11 @@ export default function HomePage() {
   }, [lastEvent]);
 
   const canExecute = Boolean(
-    projectSetup.projectPath && projectSetup.projectName && commits.length > 0 && !isExecuting,
+    projectSetup.projectPath &&
+    projectSetup.projectName &&
+    commits.length > 0 &&
+    !isExecuting &&
+    isConfigured,
   );
 
   return (
@@ -263,13 +272,11 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <ModelSelector
-            models={models}
-            selectedModel={selectedModel}
-            isLoading={isModelsLoading}
-            error={modelsError}
-            onSelect={selectModel}
-            onRefresh={refreshModels}
+          <ProviderBadge
+            generator={providers.generator.provider}
+            reviewer={providers.reviewer.provider}
+            isConfigured={isConfigured}
+            onClick={() => setIsProviderModalOpen(true)}
             disabled={isExecuting}
           />
 
@@ -342,6 +349,15 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Provider Configuration Modal */}
+      <ProviderConfigModal
+        isOpen={isProviderModalOpen}
+        generator={providers.generator}
+        reviewer={providers.reviewer}
+        onSave={(gen, rev) => updateProviders({ generator: gen, reviewer: rev })}
+        onClose={() => setIsProviderModalOpen(false)}
+      />
     </main>
   );
 }
