@@ -124,3 +124,38 @@ describe("ConsoleLog", () => {
     });
   });
 });
+
+describe("ConsoleLog local events", () => {
+  it("formats local_error with ❌ icon", () => {
+    const events: SseEvent[] = [{ type: "local_error", message: "Network failed" }];
+    render(<ConsoleLog events={events} isExecuting={true} />);
+    expect(screen.getByText(/❌ Network failed/)).toBeInTheDocument();
+  });
+
+  it("formats local_warning with ⚠ icon", () => {
+    const events: SseEvent[] = [{ type: "local_warning", message: "Session already paused" }];
+    render(<ConsoleLog events={events} isExecuting={true} />);
+    expect(screen.getByText(/⚠ Session already paused/)).toBeInTheDocument();
+  });
+
+  it("formats local_info with ℹ icon", () => {
+    const events: SseEvent[] = [{ type: "local_info", message: "Connected to API" }];
+    render(<ConsoleLog events={events} isExecuting={true} />);
+    expect(screen.getByText(/ℹ Connected to API/)).toBeInTheDocument();
+  });
+
+  it("displays error message in commit_result", () => {
+    const events: SseEvent[] = [
+      {
+        type: "commit_result",
+        commitId: "001",
+        status: "failed",
+        filesWritten: [],
+        attempts: 1,
+        error: "Type check failed at line 42",
+      },
+    ];
+    render(<ConsoleLog events={events} isExecuting={true} />);
+    expect(screen.getByText(/ERROR: Type check failed at line 42/)).toBeInTheDocument();
+  });
+});

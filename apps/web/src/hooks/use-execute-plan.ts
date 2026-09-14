@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useSse } from "./use-sse";
+import type { SseEvent } from "@/types/sse";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -27,6 +28,24 @@ export function useExecutePlan() {
     result: null,
   });
 
+  const [localEvents, setLocalEvents] = useState<SseEvent[]>([]);
+
+  const appendLocalEvent = useCallback(
+    (type: "local_error" | "local_warning" | "local_info", message: string) => {
+      const event: SseEvent = {
+        type,
+        message,
+        timestamp: new Date().toISOString(),
+      };
+      setLocalEvents((prev) => [...prev, event]);
+    },
+    [],
+  );
+
+  const clearLocalEvents = useCallback(() => {
+    setLocalEvents([]);
+  }, []);
+
   const executePlan = useCallback(
     async (
       projectContext: Record<string, unknown>,
@@ -41,6 +60,7 @@ export function useExecutePlan() {
         result: null,
       });
       clearEvents();
+      clearLocalEvents();
       connect(streamId);
 
       try {
@@ -51,8 +71,19 @@ export function useExecutePlan() {
         });
 
         if (!response.ok) {
-          const errorData = (await response.json()) as { error?: string };
-          throw new Error(errorData.error ?? "Execution failed");
+          let errorMessage = `Server responded with ${response.status} ${response.statusText}`;
+          try {
+            const errorData = (await response.json()) as { error?: string; details?: unknown };
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+            if (errorData.details) {
+              errorMessage += `\n${JSON.stringify(errorData.details, null, 2)}`;
+            }
+          } catch {
+            // Response body is not JSON — keep the status message
+          }
+          throw new Error(errorMessage);
         }
 
         const result = (await response.json()) as {
@@ -69,37 +100,56 @@ export function useExecutePlan() {
           result,
         }));
       } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown execution error";
+
+        appendLocalEvent("local_error", message);
+
         disconnect();
         setState((prev) => ({
           ...prev,
           isExecuting: false,
           currentSessionId: null,
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: message,
         }));
       }
     },
-    [clearEvents, connect, disconnect],
+    [clearEvents, clearLocalEvents, connect, disconnect, appendLocalEvent],
   );
 
   const pause = useCallback(async (): Promise<boolean> => {
-    if (!state.currentSessionId) return false;
+    if (!state.currentSessionId) {
+      appendLocalEvent("local_warning", "No active session to pause.");
+      return false;
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/pause/${state.currentSessionId}`, {
         method: "POST",
       });
 
-      return response.ok;
-    } catch {
+      if (!response.ok) {
+        appendLocalEvent(
+          "local_error",
+          `Pause request failed: ${response.status} ${response.statusText}`,
+        );
+        return false;
+      }
+
+      appendLocalEvent("local_info", "Pause signal sent. Waiting for current commit to finish...");
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown pause error";
+      appendLocalEvent("local_error", `Failed to send pause: ${message}`);
       return false;
     }
-  }, [state.currentSessionId]);
+  }, [state.currentSessionId, appendLocalEvent]);
 
   return {
     ...state,
     connectionStatus: status,
     lastEvent,
     events,
+    localEvents,
     executePlan,
     pause,
   };

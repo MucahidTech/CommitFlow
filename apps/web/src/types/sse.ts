@@ -11,10 +11,14 @@ export type SseEventType =
   | "commit_started"
   | "status"
   | "commit_result"
-  | "done";
+  | "done"
+  | "local_error"
+  | "local_warning"
+  | "local_info";
 
 export interface SseEvent {
   type: SseEventType;
+  timestamp?: string;
   [key: string]: unknown;
 }
 
@@ -40,4 +44,9 @@ export interface DoneEvent extends SseEvent {
   totalCommits: number;
   successCount: number;
   failedCount: number;
+}
+
+export interface LocalEvent extends SseEvent {
+  type: "local_error" | "local_warning" | "local_info";
+  message: string;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { CommitPlanForm } from "@/components/dashboard/commit-plan-form";
 import { CommitRoadmap } from "@/components/dashboard/commit-roadmap";
 import { ConsoleLog } from "@/components/dashboard/console-log";
@@ -59,7 +59,18 @@ export default function HomePage() {
   const [targetCommitId, setTargetCommitId] = useState<string | null>(null);
   const [completedCommitIds, setCompletedCommitIds] = useState<Set<string>>(new Set());
 
-  const { isExecuting, events, lastEvent, executePlan, pause, connectionStatus } = useExecutePlan();
+  const { isExecuting, events, localEvents, lastEvent, executePlan, pause, connectionStatus } =
+    useExecutePlan();
+
+  const allEvents = useMemo(() => {
+    const combined = [...events, ...localEvents];
+
+    return combined.sort((a, b) => {
+      const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return ta - tb;
+    });
+  }, [events, localEvents]);
 
   const { state: analyzeState, analyze, reset: resetAnalyze } = useAnalyze();
 
@@ -326,7 +337,7 @@ export default function HomePage() {
 
           {/* Bottom Half: Console Execution Log */}
           <div className="h-1/2 min-h-0 bg-surface border border-border rounded-lg flex flex-col overflow-hidden">
-            <ConsoleLog events={events} isExecuting={isExecuting} />
+            <ConsoleLog events={allEvents} isExecuting={isExecuting} />
           </div>
         </div>
       </div>

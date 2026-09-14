@@ -66,7 +66,9 @@ export function ConsoleLog({ events, isExecuting }: ConsoleLogProps) {
 }
 
 function formatEvent(event: SseEvent): string {
-  const timestamp = new Date().toLocaleTimeString();
+  const timestamp = event.timestamp
+    ? new Date(event.timestamp).toLocaleTimeString()
+    : new Date().toLocaleTimeString();
 
   switch (event.type) {
     case "connected":
@@ -91,7 +93,8 @@ function formatEvent(event: SseEvent): string {
       const resultStatus = resultEv.status ?? "unknown";
       const filesCount = resultEv.filesWritten?.length ?? 0;
       const filesText = filesCount > 0 ? ` (${filesCount} files written)` : "";
-      return `[${timestamp}]   Result: ${formatStatusLabel(resultStatus)}${filesText}`;
+      const errorText = resultEv.error ? `\n   ERROR: ${resultEv.error}` : "";
+      return `[${timestamp}]   Result: ${formatStatusLabel(resultStatus)}${filesText}${errorText}`;
     }
 
     case "done": {
@@ -101,6 +104,16 @@ function formatEvent(event: SseEvent): string {
 
     case "heartbeat":
       return `[${timestamp}] ♥ heartbeat`;
+
+    // Local events (raised by the client)
+    case "local_error":
+      return `[${timestamp}] ❌ ${String(event.message ?? "Unknown error")}`;
+
+    case "local_warning":
+      return `[${timestamp}] ⚠ ${String(event.message ?? "")}`;
+
+    case "local_info":
+      return `[${timestamp}] ℹ ${String(event.message ?? "")}`;
 
     default:
       return `[${timestamp}] ${event.type}`;
@@ -134,6 +147,13 @@ function getLineColor(type: SseEvent["type"] | undefined): string {
       return "text-slate-300";
     case "heartbeat":
       return "text-slate-600 text-[10px]";
+    // Local events
+    case "local_error":
+      return "text-rose-400 font-medium";
+    case "local_warning":
+      return "text-amber-400";
+    case "local_info":
+      return "text-sky-400";
     default:
       return "text-slate-400";
   }
