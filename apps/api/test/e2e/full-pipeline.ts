@@ -13,16 +13,15 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import type { CommitItem, ProjectContext, ProvidersConfig } from "@commitflow/shared";
-import { OrchestratorService } from "../services/ai/orchestrator.service";
-import { SnapshotService } from "../services/snapshot/snapshot.service";
-import { FileService } from "../services/filesystem/file.service";
-import { env } from "../config/env";
-import type { StatusCallback } from "../services/ai/orchestrator.service";
+import { OrchestratorService } from "../../src/services/ai/orchestrator.service";
+import { SnapshotService } from "../../src/services/snapshot/snapshot.service";
+import { FileService } from "../../src/services/filesystem/file.service";
+import { env } from "../../src/config/env";
+import type { StatusCallback } from "../../src/services/ai/orchestrator.service";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PLAYGROUND_PATH = path.resolve(__dirname, "../../test-workspace/playground");
-const PLAYGROUND_GIT_DIR = path.join(PLAYGROUND_PATH, ".git");
 
 const TEST_COMMIT: CommitItem = {
   id: "001",
@@ -45,11 +44,31 @@ const TEST_CONTEXT: ProjectContext = {
 };
 
 /**
+ * Canonical fixture content for src/index.ts.
+ * E2E tests may modify this file — reset restores this exact content.
+ */
+const FIXTURE_INDEX_CONTENT = `/**
+ * Dummy project file for E2E testing.
+ * The AI will modify this file during test execution.
+ */
+
+export function greet(name: string): string {
+  return \`Hello, \${name}!\`;
+}
+
+export function add(a: number, b: number): number {
+  return a + b;
+}
+
+console.log(greet("CommitFlow"));
+console.log(\`2 + 3 = \${add(2, 3)}\`);
+`;
+
+/**
  * Build providers config from env variables.
  * Uses the same fallback mechanism as the API.
  */
 function buildProvidersFromEnv(): ProvidersConfig {
-  // Generator — prefers DeepSeek, falls back to Groq, then OpenRouter
   const generator = env.DEEPSEEK_API_KEY
     ? { provider: "deepseek" as const, apiKey: env.DEEPSEEK_API_KEY }
     : env.GROQ_API_KEY
@@ -58,7 +77,6 @@ function buildProvidersFromEnv(): ProvidersConfig {
         ? { provider: "openrouter" as const, apiKey: env.OPENROUTER_API_KEY }
         : null;
 
-  // Reviewer — prefers Groq, falls back to OpenRouter, then DeepSeek
   const reviewer = env.GROQ_API_KEY
     ? { provider: "groq" as const, apiKey: env.GROQ_API_KEY }
     : env.OPENROUTER_API_KEY
@@ -93,52 +111,55 @@ const onStatusChange: StatusCallback = (status, attempt, message) => {
   console.log(`    → [${status}]${attemptText}${messageText}`);
 };
 
-/** Executes Git command strictly scoped to the playground repository */
-function execPlaygroundGit(command: string): void {
-  execSync(command, {
+/**
+ * Ensure the playground directory has a git repository ready for the Orchestrator.
+ * The Orchestrator auto-initializes git if missing, but we need user config
+ * to be set up so commits don't fail.
+ */
+function ensurePlaygroundGit(): void {
+  const gitDir = path.join(PLAYGROUND_PATH, ".git");
+
+  if (!fs.existsSync(gitDir)) {
+    execSync("git init", {
+      cwd: PLAYGROUND_PATH,
+      stdio: "ignore",
+    });
+  }
+
+  execSync('git config user.name "CommitFlow E2E"', {
     cwd: PLAYGROUND_PATH,
     stdio: "ignore",
-    env: {
-      ...process.env,
-      GIT_DIR: PLAYGROUND_GIT_DIR,
-      GIT_WORK_TREE: PLAYGROUND_PATH,
-    },
   });
-}
+  execSync('git config user.email "e2e@commitflow.local"', {
+    cwd: PLAYGROUND_PATH,
+    stdio: "ignore",
+  });
 
-/** Ensure the playground directory exists with dummy files and its own isolated git repo */
-function prepareIsolatedPlayground(): void {
-  if (!fs.existsSync(PLAYGROUND_PATH)) {
-    fs.mkdirSync(PLAYGROUND_PATH, { recursive: true });
-  }
-
-  // Create an isolated .git inside playground if missing
-  if (!fs.existsSync(PLAYGROUND_GIT_DIR)) {
-    logStatus("Initializing isolated Git repository inside playground...", "info");
-    execPlaygroundGit("git init");
-    execPlaygroundGit('git config user.name "CommitFlow E2E"');
-    execPlaygroundGit('git config user.email "e2e@commitflow.local"');
-  }
-
-  // Commit initial state inside playground git
+  // Stage and commit the current fixture state as the initial baseline
+  // (only if there's nothing committed yet)
   try {
-    execPlaygroundGit("git add .");
-    execPlaygroundGit('git commit -m "chore: initial playground commit"');
-    logStatus("Playground isolated Git initialized with initial commit", "success");
+    execSync("git rev-parse HEAD", { cwd: PLAYGROUND_PATH, stdio: "ignore" });
   } catch {
-    // Already committed or no changes
+    // No commits yet — create initial commit
+    execSync("git add .", { cwd: PLAYGROUND_PATH, stdio: "ignore" });
+    execSync('git commit -m "chore: initial playground commit"', {
+      cwd: PLAYGROUND_PATH,
+      stdio: "ignore",
+    });
+    logStatus("Playground git initialized with initial commit", "success");
   }
 }
 
-/** Reset ONLY the playground workspace without affecting the root project */
+/**
+ * Reset the playground fixture to its canonical state.
+ *
+ * E2E tests modify src/index.ts (the only fixture file the AI changes).
+ * We restore its content so the parent repository sees no unexpected changes.
+ */
 function resetPlayground(): void {
-  try {
-    execPlaygroundGit("git reset --hard HEAD");
-    execPlaygroundGit("git clean -fd");
-    logStatus("Playground reset strictly to its isolated clean state", "info");
-  } catch {
-    logStatus("Could not reset playground workspace", "warn");
-  }
+  const fixturePath = path.join(PLAYGROUND_PATH, "src", "index.ts");
+  fs.writeFileSync(fixturePath, FIXTURE_INDEX_CONTENT, "utf-8");
+  logStatus("Playground fixture reset to canonical content", "info");
 }
 
 async function runE2eTest(): Promise<void> {
@@ -159,16 +180,18 @@ async function runE2eTest(): Promise<void> {
     "info",
   );
 
-  // 1. Prepare Workspace & Isolated Git
-  prepareIsolatedPlayground();
+  // 1. Ensure git repo is ready
+  ensurePlaygroundGit();
+
+  // 2. Reset fixture content (in case a previous run left changes)
   resetPlayground();
 
-  // 2. Check File Workspace
+  // 3. Check File Workspace
   const fileService = new FileService(PLAYGROUND_PATH);
   const files = await fileService.listFiles();
   logStatus(`Found ${files.length} project files: ${files.join(", ")}`, "info");
 
-  // 3. Build Project Snapshot & Initialize Orchestrator
+  // 4. Build Project Snapshot & Initialize Orchestrator
   logStatus("Building project snapshot...", "info");
   const snapshotService = new SnapshotService(PLAYGROUND_PATH);
   const snapshot = await snapshotService.buildSnapshot();
@@ -176,7 +199,7 @@ async function runE2eTest(): Promise<void> {
   logStatus("Initializing OrchestratorService...", "info");
   const orchestrator = new OrchestratorService(PLAYGROUND_PATH);
 
-  // 4. Execute Commit Pipeline
+  // 5. Execute Commit Pipeline
   logStatus(
     `Executing Commit: ${TEST_COMMIT.type}(${TEST_COMMIT.scope}): ${TEST_COMMIT.subject}`,
     "info",
@@ -204,6 +227,9 @@ Files Written: ${result.filesWritten.join(", ") || "none"}
 Commit Hash:   ${result.commitHash ?? "N/A"}
 Error:         ${result.error ?? "none"}
 `);
+
+  // 6. Reset fixture content so parent repo sees no changes
+  resetPlayground();
 
   if (result.status === "completed") {
     logStatus("E2E Integration Test PASSED", "success");
