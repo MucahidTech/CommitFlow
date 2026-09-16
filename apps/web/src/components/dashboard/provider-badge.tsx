@@ -27,6 +27,7 @@ export function ProviderBadge({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-testid="provider-badge"
       className={`
         flex items-center gap-1.5 px-2 py-0.5 rounded border text-[11px] font-mono
         transition-colors cursor-pointer
