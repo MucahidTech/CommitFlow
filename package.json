@@ -22,6 +22,11 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\"",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "e2e:api": "pnpm --filter @commitflow/api e2e:all",
+    "e2e:web": "pnpm --filter @commitflow/web test:e2e --project=chromium",
+    "e2e:integration": "pnpm --filter @commitflow/web test:e2e:integration",
+    "e2e:all": "pnpm run e2e:api && pnpm run e2e:web && pnpm run e2e:integration",
+    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm test && pnpm run e2e:all",
     "clean": "turbo clean && pnpm -r --parallel exec rm -rf node_modules dist .turbo .next"
   },
   "type": "module",
