@@ -8,7 +8,7 @@ test.describe("Execution Flow", () => {
   });
 
   test("successful execution updates roadmap and console", async ({ page }) => {
-    await setupApiMocks(page, { executeSuccess: true });
+    await setupApiMocks(page, { sse: "success", execute: "success" });
 
     // Setup
     await page.getByLabel("Project Name").fill("test");
@@ -26,7 +26,7 @@ test.describe("Execution Flow", () => {
   });
 
   test("failed execution shows error in console", async ({ page }) => {
-    await setupApiMocks(page, { executeSuccess: false });
+    await setupApiMocks(page, { sse: "failed", execute: "failed" });
 
     await page.getByLabel("Project Name").fill("test");
     await page.getByPlaceholder("/absolute/path/to/project").fill("/tmp/test");
@@ -35,6 +35,6 @@ test.describe("Execution Flow", () => {
     await page.getByRole("button", { name: "Execute Plan" }).click();
 
     // Console should show the failure
-    await expect(page.getByText(/Failed/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/AI model rejected/)).toBeVisible({ timeout: 10_000 });
   });
 });
