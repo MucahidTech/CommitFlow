@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "e2e": "tsx --env-file=.env test/e2e/full-pipeline.ts",
     "e2e:http": "tsx --env-file=.env test/e2e/http-pipeline.ts",
+    "e2e:edge": "tsx --env-file=.env test/e2e/pause-and-errors.ts",
     "clean": "rm -rf dist node_modules .turbo"
   },
   "dependencies": {
