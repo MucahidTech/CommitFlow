@@ -6,16 +6,16 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsup",
-    "dev": "tsx watch --env-file=.env src/index.ts",
-    "start": "node --env-file=.env dist/index.js",
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "start": "node --env-file-if-exists=.env dist/index.js",
     "lint": "eslint src/ test/ --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "tsx --env-file=.env test/e2e/full-pipeline.ts",
-    "e2e:http": "tsx --env-file=.env test/e2e/http-pipeline.ts",
-    "e2e:edge": "tsx --env-file=.env test/e2e/pause-and-errors.ts",
-    "e2e:all": "tsx --env-file=.env test/e2e/run-all.ts",
+    "e2e": "tsx --env-file-if-exists=.env test/e2e/full-pipeline.ts",
+    "e2e:http": "tsx --env-file-if-exists=.env test/e2e/http-pipeline.ts",
+    "e2e:edge": "tsx --env-file-if-exists=.env test/e2e/pause-and-errors.ts",
+    "e2e:all": "tsx --env-file-if-exists=.env test/e2e/run-all.ts",
     "clean": "rm -rf dist node_modules .turbo"
   },
   "dependencies": {

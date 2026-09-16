@@ -28,7 +28,7 @@ function runScript(label: string, scriptPath: string): { success: boolean; skipp
   console.log(`▶ ${label}`);
   console.log("═".repeat(60));
 
-  const result = spawnSync("tsx", ["--env-file=.env", scriptPath], {
+  const result = spawnSync("tsx", ["--env-file-if-exists=.env", scriptPath], {
     cwd: APP_ROOT,
     stdio: "inherit",
     shell: process.platform === "win32",
