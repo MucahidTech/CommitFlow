@@ -1,30 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/**
- * Playwright configuration for CommitFlow Web dashboard E2E tests.
- *
- * Tests run against a locally started Next.js dev server.
- * API endpoints are mocked via route interception (see `e2e/fixtures`).
- */
 export default defineConfig({
-  testDir: "./e2e",
-
-  // Run tests in parallel
-  fullyParallel: true,
-
-  // Fail on CI if test.only is left in code
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
-
-  // Retry on CI only
   retries: process.env.CI ? 2 : 0,
-
-  // Single worker locally, parallel on CI
   workers: process.env.CI ? 1 : undefined,
-
-  // Multiple reporters
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
 
-  // Shared settings
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
@@ -32,19 +14,33 @@ export default defineConfig({
     video: "retain-on-failure",
   },
 
-  // Single browser project for now
   projects: [
     {
       name: "chromium",
+      testDir: "./e2e",
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "integration",
+      testDir: "./e2e-integration",
+      testMatch: /.*\.spec\.ts$/,
+      use: { ...devices["Desktop Chrome"] },
+      timeout: 180_000,
     },
   ],
 
-  // Start dev server automatically
-  webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: "pnpm --filter @commitflow/api dev",
+      url: "http://localhost:4000/health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: "pnpm dev",
+      url: "http://localhost:3000",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

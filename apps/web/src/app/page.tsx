@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { CommitPlanForm } from "@/components/dashboard/commit-plan-form";
 import { CommitRoadmap } from "@/components/dashboard/commit-roadmap";
 import { ConsoleLog } from "@/components/dashboard/console-log";
@@ -61,7 +61,7 @@ export default function HomePage() {
   const [completedCommitIds, setCompletedCommitIds] = useState<Set<string>>(new Set());
   const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
 
-  const { isExecuting, events, localEvents, lastEvent, executePlan, pause, connectionStatus } =
+  const { isExecuting, events, localEvents, executePlan, pause, connectionStatus } =
     useExecutePlan();
 
   const allEvents = useMemo(() => {
@@ -220,40 +220,46 @@ export default function HomePage() {
     setCompletedCommitIds(new Set());
   }, [projectSetup.projectPath, clearSavedState]);
 
+  const processedEventsCountRef = useRef(0);
+
   useEffect(() => {
-    if (!lastEvent) return;
+    const newEvents = events.slice(processedEventsCountRef.current);
 
-    if (lastEvent.type === "status") {
-      const statusEvent = lastEvent as StatusEvent;
-      setCommits((prev) =>
-        prev.map((c) =>
-          isSameCommit(c.id, statusEvent.commitId)
-            ? { ...c, status: mapApiStatus(statusEvent.status) }
-            : c,
-        ),
-      );
-    }
+    for (const event of newEvents) {
+      if (event.type === "status") {
+        const statusEvent = event as StatusEvent;
+        setCommits((prev) =>
+          prev.map((c) =>
+            isSameCommit(c.id, statusEvent.commitId)
+              ? { ...c, status: mapApiStatus(statusEvent.status) }
+              : c,
+          ),
+        );
+      }
 
-    if (lastEvent.type === "commit_result") {
-      const resultEvent = lastEvent as CommitResultEvent;
-      setCommits((prev) =>
-        prev.map((c) => {
-          if (isSameCommit(c.id, resultEvent.commitId)) {
-            const isCompleted = resultEvent.status === "completed";
-            if (isCompleted) {
-              setCompletedCommitIds((completedSet) => new Set(completedSet).add(c.id));
+      if (event.type === "commit_result") {
+        const resultEvent = event as CommitResultEvent;
+        setCommits((prev) =>
+          prev.map((c) => {
+            if (isSameCommit(c.id, resultEvent.commitId)) {
+              const isCompleted = resultEvent.status === "completed";
+              if (isCompleted) {
+                setCompletedCommitIds((completedSet) => new Set(completedSet).add(c.id));
+              }
+              return {
+                ...c,
+                status: isCompleted ? "completed" : "failed",
+                error: resultEvent.error,
+              };
             }
-            return {
-              ...c,
-              status: isCompleted ? "completed" : "failed",
-              error: resultEvent.error,
-            };
-          }
-          return c;
-        }),
-      );
+            return c;
+          }),
+        );
+      }
     }
-  }, [lastEvent]);
+
+    processedEventsCountRef.current = events.length;
+  }, [events]);
 
   const canExecute = Boolean(
     projectSetup.projectPath &&

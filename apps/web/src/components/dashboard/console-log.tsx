@@ -30,7 +30,7 @@ export function ConsoleLog({ events, isExecuting }: ConsoleLogProps) {
   }, [formattedLines.length]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-background">
+    <div data-testid="console-log-container" className="flex flex-col h-full min-h-0 bg-background">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border p-3 shrink-0">
         <h3 className="text-xs font-semibold text-text uppercase tracking-wider">Execution Log</h3>

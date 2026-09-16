@@ -58,8 +58,10 @@ test.describe("Console Log", () => {
 
     await page.getByRole("button", { name: "Execute Plan" }).click();
 
-    await expect(page.getByText(/AI model rejected/)).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText(/Execution complete: 0\/1 succeeded/)).toBeVisible();
+    // Scope to the Execution Log section to avoid matching the roadmap error
+    const consoleSection = page.getByTestId("console-log-container");
+    await expect(consoleSection.getByText(/AI model rejected/)).toBeVisible({ timeout: 5_000 });
+    await expect(consoleSection.getByText(/Execution complete: 0\/1 succeeded/)).toBeVisible();
   });
 
   test("shows Running status during execution", async ({ page }) => {
