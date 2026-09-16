@@ -13,7 +13,7 @@ import type {
 const generatedFileSchema = z.object({
   path: z.string().min(1),
   content: z.string(),
-  operation: z.enum(["create", "modify", "delete"]),
+  operation: z.enum(["create", "modify", "delete"]).catch("create"),
 });
 
 const generateCodeResponseSchema = z.object({
@@ -60,7 +60,39 @@ export class AiProviderService {
     ]);
 
     const parsed = this.extractJson(content);
-    return generateCodeResponseSchema.parse(parsed);
+    const normalized = this.normalizeGeneratedFiles(parsed);
+    return generateCodeResponseSchema.parse(normalized);
+  }
+
+  /**
+   * Normalize AI-generated file operations.
+   * Some providers (e.g., Groq's gpt-oss-120b) may omit the "operation" field.
+   * We infer it from context: if the file has content, it's a create/modify;
+   * otherwise, it's likely a delete.
+   */
+  private normalizeGeneratedFiles(raw: unknown): unknown {
+    if (!raw || typeof raw !== "object") return raw;
+
+    const obj = raw as { files?: unknown };
+    if (!Array.isArray(obj.files)) return raw;
+
+    const fixedFiles = obj.files.map((file) => {
+      if (!file || typeof file !== "object") return file;
+
+      const f = file as { operation?: unknown; content?: unknown };
+
+      if (f.operation !== undefined && f.operation !== null) {
+        return f;
+      }
+
+      // Infer operation: if content exists and is non-empty → create
+      // (backend doesn't know if the file already exists; create is a safe default)
+      const inferred = typeof f.content === "string" && f.content.length > 0 ? "create" : "delete";
+
+      return { ...f, operation: inferred };
+    });
+
+    return { ...obj, files: fixedFiles };
   }
 
   /**
@@ -207,10 +239,11 @@ Your task is to generate file changes for a specific commit.
 Rules:
 1. Return ONLY valid JSON (no markdown wrapping, no conversational explanation)
 2. Response structure MUST match: { "files": [{ "path": string, "content": string, "operation": "create" | "modify" | "delete" }], "summary": string }
-3. Read current file content carefully before modifying
-4. Preserve existing code unless the commit requires changing it
-5. Follow the project's conventions (TypeScript strict, ESLint, Prettier)
-6. Never include secrets or API keys in generated code`;
+3. EVERY file entry MUST include the "operation" field (one of: "create", "modify", "delete")
+4. Read current file content carefully before modifying
+5. Preserve existing code unless the commit requires changing it
+6. Follow the project's conventions (TypeScript strict, ESLint, Prettier)
+7. Never include secrets or API keys in generated code`;
   }
 
   private buildGenerateUserPrompt(request: GenerateCodeRequest): string {
