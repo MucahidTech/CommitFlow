@@ -10,6 +10,16 @@
 [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D11.0.0-orange.svg)](https://pnpm.io/)
 [![Turborepo](https://img.shields.io/badge/turborepo-2.3.3-red.svg)](https://turbo.build/)
 
+<br />
+
+<p align="center">
+  <img src="./docs/screenshots/demo.gif" alt="CommitFlow End-to-End Demo" width="100%" />
+  <br />
+  <em>End-to-end demo: analyze an existing project, select a target commit, execute live, pause, resume, and re-scan to see the updated roadmap.</em>
+  <br />
+  <sub>Two agents work in tandem: one generates code, the other reviews it before each commit.</sub>
+</p>
+
 </div>
 
 ---
@@ -46,17 +56,39 @@ The tool runs entirely on your machine and operates on **your local project**, n
 
 ---
 
+## 📸 Screenshots & UI Tour
+
+<p align="center">
+  <img src="./docs/screenshots/dashboard-overview.png" alt="CommitFlow Dashboard Overview" width="100%" />
+  <br />
+  <em>Interactive Dashboard: Project context configuration, plan input, commit roadmap, and live execution terminal.</em>
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/provider-config.png" alt="AI Provider Configuration" width="85%" />
+  <br />
+  <em>Flexible AI Architecture: Configure generator and reviewer models independently (DeepSeek, Groq, OpenRouter).</em>
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/roadmap-states.png" alt="Commit Roadmap States" width="85%" />
+  <br />
+  <em>Roadmap Tracker: Granular status tracking with real-time SSE execution logs.</em>
+</p>
+
+---
+
 ## 🏗️ Architecture & Tech Stack
 
 ```text
 commitflow/
-├── .github/workflows/ # CI/CD automation pipelines
+├── .github/workflows/       # CI/CD automation pipelines
 ├── apps/
-│ ├── api/ # Express server (AI orchestration, Git execution, Quality gates)
-│ └── web/ # Next.js 15 dashboard (Roadmap visualization, SSE live logs)
+│   ├── api/                 # Express server (AI orchestration, Git execution, Quality gates)
+│   └── web/                 # Next.js 15 dashboard (Roadmap visualization, SSE live logs)
 └── packages/
-├── shared/ # Zod schemas & inferred TypeScript types
-└── config-typescript/ # Shared TypeScript tooling configurations
+    ├── shared/              # Zod schemas & inferred TypeScript types
+    └── config-typescript/   # Shared TypeScript tooling configurations
 ```
 
 | Component              | Technology                                                                     |
@@ -74,13 +106,12 @@ commitflow/
 ### Execution Pipeline
 
 ```text
-
-1. Context Init → Scan project path, auto-init git if empty, detect tech stack
-2. Plan Submit → API validates structure via Zod schemas and target commit configuration
-3. Generation → Generator agent reads context and produces changes
-4. AI Review → Reviewer agent inspects code (refines up to 3x)
-5. Quality Gate → Prettier & TypeScript compiler run checks
-6. Git Commit → Rollback on error; apply atomic commit on pass (if Safe Mode OFF)
+1. Context Init  → Scan project path, auto-init git if empty, detect tech stack
+2. Plan Submit   → API validates structure via Zod schemas and target commit configuration
+3. Generation    → Generator agent reads context and produces changes
+4. AI Review     → Reviewer agent inspects code (refines up to 3x)
+5. Quality Gate  → Prettier & TypeScript compiler run checks
+6. Git Commit    → Rollback on error; apply atomic commit on pass (if Safe Mode OFF)
 7. Stream Status → Live updates pushed to dashboard via SSE with Pause/Resume controls
 ```
 
@@ -131,13 +162,11 @@ HOST=0.0.0.0
 CORS_ORIGIN=http://localhost:3000
 
 # AI Provider Keys (at least one required for runtime and E2E tests)
-
 GROQ_API_KEY=your_groq_api_key
 DEEPSEEK_API_KEY=your_deepseek_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
 
 # Optional provider base URLs
-
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
